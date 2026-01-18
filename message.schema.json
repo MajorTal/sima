@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ExternalMessage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["message_text"],
+  "properties": {
+    "message_text": { "type": "string" }
+  }
+}

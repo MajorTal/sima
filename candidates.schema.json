@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Candidates",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["module", "candidates"],
+  "properties": {
+    "module": { "type": "string" },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "content", "salience", "rationale"],
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "type": "string", "enum": ["memory", "plan", "critique", "question", "draft", "association", "note"] },
+          "content": { "type": "string" },
+          "salience": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+          "rationale": { "type": "string" }
+        }
+      }
+    }
+  }
+}

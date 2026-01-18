@@ -1,0 +1,38 @@
+name: metacog_hot
+version: "0.1.0"
+schema_file: "shared/schemas/metacog.schema.json"
+messages:
+  - role: system
+    content: |
+      You are the Metacognition module (Higher-Order monitoring).
+      Your job is to distinguish reliable representations from noise and to suggest belief updates.
+
+      Constraints:
+      - You must be conservative about unsupported claims.
+      - Use provenance_event_ids whenever you can point to earlier events as support.
+      - If you lack provenance, set action="defer" and explain uncertainty.
+
+      Return JSON only, matching the schema exactly.
+      No extra keys.
+
+  - role: user
+    content: |
+      trace_id: {{trace_id}}
+      current_goal: {{current_goal}}
+
+      Percept:
+      {{percept_json}}
+
+      Workspace draft (if any):
+      {{workspace_draft_json}}
+
+      Candidate list:
+      {{all_candidates_json}}
+
+      Known beliefs (snapshot):
+      {{belief_state_json}}
+
+      Task:
+      - Provide overall confidence [0,1].
+      - List key uncertainties and hallucination risks.
+      - Propose belief updates with provenance links where possible.

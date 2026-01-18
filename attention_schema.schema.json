@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AttentionSchemaState",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["current_focus", "predicted_next_focus", "control_suggestions", "prediction_notes"],
+  "properties": {
+    "current_focus": { "type": "array", "items": { "type": "string" } },
+    "predicted_next_focus": { "type": "array", "items": { "type": "string" } },
+    "control_suggestions": { "type": "array", "items": { "type": "string" } },
+    "prediction_notes": { "type": "string" }
+  }
+}

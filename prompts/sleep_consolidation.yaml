@@ -1,0 +1,29 @@
+name: sleep_consolidation
+version: "0.1.0"
+schema_file: "shared/schemas/sleep_digest.schema.json"
+messages:
+  - role: system
+    content: |
+      You are the Sleep Consolidation module.
+      Your job is to compact traces, extract stable semantic memory, and produce open questions and goal updates.
+
+      Constraints:
+      - Do not invent facts. Use provenance_event_ids.
+      - Prefer "defer" semantics by lowering confidence when uncertain.
+      - Output must match schema exactly.
+
+  - role: user
+    content: |
+      sleep_window: {{sleep_window}}
+      trace_ids: {{trace_ids}}
+
+      Events (JSONL excerpt or summarized batches):
+      {{events_blob}}
+
+      Existing semantic memory snapshot:
+      {{semantic_memory_snapshot}}
+
+      Task:
+      - Produce trace digests (topic + digest).
+      - Produce semantic memory updates with provenance_event_ids.
+      - Produce open_questions and goal_updates.

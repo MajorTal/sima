@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MetacognitionReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["confidence", "uncertainties", "hallucination_risks", "belief_updates"],
+  "properties": {
+    "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+    "uncertainties": { "type": "array", "items": { "type": "string" } },
+    "hallucination_risks": { "type": "array", "items": { "type": "string" } },
+    "belief_updates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["claim", "action", "confidence", "provenance_event_ids"],
+        "properties": {
+          "claim": { "type": "string" },
+          "action": { "type": "string", "enum": ["add", "revise", "retract", "defer"] },
+          "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+          "provenance_event_ids": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

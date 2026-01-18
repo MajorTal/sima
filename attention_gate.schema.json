@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AttentionGateResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["workspace_capacity_k", "selected_ids", "rejected_ids", "selection_rationale"],
+  "properties": {
+    "workspace_capacity_k": { "type": "integer", "minimum": 1, "maximum": 20 },
+    "selected_ids": { "type": "array", "items": { "type": "string" } },
+    "rejected_ids": { "type": "array", "items": { "type": "string" } },
+    "selection_rationale": { "type": "string" }
+  }
+}

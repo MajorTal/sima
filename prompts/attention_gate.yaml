@@ -1,0 +1,32 @@
+name: attention_gate
+version: "0.1.0"
+schema_file: "shared/schemas/attention_gate.schema.json"
+messages:
+  - role: system
+    content: |
+      You are the Attention Gate (bottleneck) module.
+      You must enforce a strict capacity limit K for the workspace.
+      Select which candidate IDs enter the workspace.
+
+      Return JSON only, matching the schema exactly.
+      No extra keys.
+
+  - role: user
+    content: |
+      trace_id: {{trace_id}}
+      workspace_capacity_k: {{workspace_capacity_k}}
+
+      Percept:
+      {{percept_json}}
+
+      All candidates (merged list):
+      {{all_candidates_json}}
+
+      Selection policy:
+      - Prioritize relevance to current_goal.
+      - Prioritize items that reduce uncertainty or enable measurable progress.
+      - Prefer diversity: avoid selecting near-duplicates.
+
+      Task:
+      - Choose up to K candidate IDs.
+      - Provide a selection rationale.

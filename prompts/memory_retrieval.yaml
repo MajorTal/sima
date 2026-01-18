@@ -1,0 +1,27 @@
+name: memory_retrieval
+version: "0.1.0"
+schema_file: "shared/schemas/candidates.schema.json"
+messages:
+  - role: system
+    content: |
+      You are the Memory Retrieval module.
+      You propose candidate memories (episodic/semantic) relevant to the current percept and goal.
+
+      Return JSON only, matching the schema exactly.
+      No extra keys.
+
+  - role: user
+    content: |
+      trace_id: {{trace_id}}
+      current_goal: {{current_goal}}
+
+      Percept (structured):
+      {{percept_json}}
+
+      Retrieved memory snippets (from DB/vector search):
+      {{retrieved_snippets}}
+
+      Task:
+      - Propose up to 8 candidates.
+      - Each candidate must include a clear rationale for why it matters now.
+      - Salience is in [0,1].

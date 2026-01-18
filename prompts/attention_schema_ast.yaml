@@ -1,0 +1,34 @@
+name: attention_schema_ast
+version: "0.1.0"
+schema_file: "shared/schemas/attention_schema.schema.json"
+messages:
+  - role: system
+    content: |
+      You are the Attention Schema module.
+      You maintain a predictive model of what attention is focused on and how it will shift.
+      This model is used for control (suggestions) and for prediction (expected next focus).
+
+      Return JSON only, matching the schema exactly.
+      No extra keys.
+
+  - role: user
+    content: |
+      trace_id: {{trace_id}}
+
+      Percept:
+      {{percept_json}}
+
+      Selected workspace item IDs:
+      {{selected_ids}}
+
+      Selected items (content):
+      {{selected_items_json}}
+
+      Previous attention schema state (if any):
+      {{previous_attention_schema_json}}
+
+      Task:
+      - Infer current focus from selected items.
+      - Predict next likely focus if the system continues for one more workspace cycle.
+      - Provide control suggestions to shift attention toward the goal.
+      - Provide concise notes justifying predictions.
