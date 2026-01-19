@@ -427,6 +427,108 @@ tags            TEXT[]
 
 ---
 
+## 12.1 Implementation Status
+
+> **Last Updated**: 2025-01-19 (pre-testing)
+
+### Milestone Status
+
+| Milestone | Status | Notes |
+|-----------|--------|-------|
+| **M0 — Plumbing** | ⚠️ 90% | Storage, ingest, orchestrator, web built. Needs e2e testing. |
+| **M1 — Full Modular Awake Loop** | ⚠️ 85% | All modules wired. Gate uses LLM (not simulated competition). No belief revision re-run yet. |
+| **M2 — Sleep Consolidation** | ❌ 0% | Not started. Directory scaffolded only. |
+| **M3 — Website** | ⚠️ 70% | Lab + public routes built. 4-panel layout simplified to list view. |
+| **M4 — Time-Sensing** | ⚠️ 60% | Worker supports ticks. Inner monologue not separate module. |
+
+### Component Status
+
+| Component | Location | Status | Notes |
+|-----------|----------|--------|-------|
+| **sima-core** | `packages/sima-core/` | ✅ Complete | Types, events, IDs, time utilities |
+| **sima-llm** | `packages/sima-llm/` | ⚠️ Skeleton | Router exists, provider implementations missing |
+| **sima-prompts** | `packages/sima-prompts/` | ✅ Complete | Registry + renderer, 10 YAML prompts |
+| **sima-storage** | `packages/sima-storage/` | ✅ Complete | Models, repository, migrations, S3 helpers |
+| **orchestrator** | `services/orchestrator/` | ⚠️ 90% | Awake loop wired, needs LLM providers |
+| **ingest-api** | `services/ingest-api/` | ✅ Complete | FastAPI + webhook + SQS |
+| **api** | `services/api/` | ✅ Complete | REST + WebSocket + auth |
+| **web** | `services/web/` | ⚠️ 80% | Next.js app, needs 4-panel public view |
+| **sleep** | `services/sleep/` | ❌ Empty | Not implemented |
+
+### Implementation Gaps
+
+**Architectural deviations from spec:**
+
+1. **Attention Gate** (Section 2.2)
+   - Spec: Simulated competition with mutual inhibition
+   - Current: LLM-based selection via prompt
+   - Impact: Missing biologically-inspired dynamics
+
+2. **Inner Monologue** (Section 2.1, Step 9)
+   - Spec: Separate step, always generated, goes to conscious channel
+   - Current: Not implemented as separate module
+   - Impact: No persistent inner narrative stream
+
+3. **HOT Belief Revision Loop** (Section 2.2)
+   - Spec: Low confidence triggers re-run of earlier modules
+   - Current: Metacog runs but doesn't trigger re-runs
+   - Impact: Metacognition not causally coupled
+
+4. **AST Predict-Compare** (Section 2.2)
+   - Spec: Compare prediction to actual, log delta
+   - Current: Prediction generated but comparison not logged
+   - Impact: Missing control success rate metric
+
+5. **Telegram Channel Posting** (Section 2.3)
+   - Spec: Conscious/subconscious streams to separate channels
+   - Current: Client built but not wired to post during tick
+   - Impact: No live telemetry streams
+
+6. **Public Website 4-Panel** (Section 8.2)
+   - Spec: Memories, Subconscious, Inner Monologue, External Chat
+   - Current: Simplified trace list view
+   - Impact: Less immersive observation experience
+
+### What's Working (Pre-Testing)
+
+- [x] Database schema and migrations
+- [x] Event persistence layer
+- [x] Trace and event repositories
+- [x] Telegram webhook reception
+- [x] SQS message enqueueing
+- [x] Awake loop orchestration (all 7 modules)
+- [x] Prompt loading and rendering
+- [x] REST API for traces/events/metrics
+- [x] WebSocket endpoint (server-side)
+- [x] Lab authentication (JWT)
+- [x] Admin pause/resume
+- [x] Web UI (public + lab routes)
+- [x] Dev scripts (dev_up.sh, seed_demo_trace.py)
+
+### What Needs Testing
+
+- [ ] End-to-end: Telegram → SQS → orchestrator → DB → API → Web
+- [ ] LLM integration (need provider implementations)
+- [ ] WebSocket client receiving events
+- [ ] Migration on fresh database
+- [ ] Docker builds for all services
+
+### What's Not Started
+
+- [ ] Sleep consolidation service
+- [ ] Memory tiering (L1/L2/L3)
+- [ ] genesis.md as L3 core memory
+- [ ] Inner monologue module
+- [ ] Simulated competition gate
+- [ ] Belief revision re-run loop
+- [ ] AST comparison logging
+- [ ] Telegram channel posting
+- [ ] 4-panel public website
+- [ ] Indicator metrics computation (real values)
+- [ ] Tests
+
+---
+
 ## 13. Implementation Order
 
 1. Event store + migrations
