@@ -429,14 +429,14 @@ tags            TEXT[]
 
 ## 12.1 Implementation Status
 
-> **Last Updated**: 2025-01-19 (pre-testing)
+> **Last Updated**: 2025-01-19 (post-testing)
 
 ### Milestone Status
 
 | Milestone | Status | Notes |
 |-----------|--------|-------|
-| **M0 — Plumbing** | ⚠️ 90% | Storage, ingest, orchestrator, web built. Needs e2e testing. |
-| **M1 — Full Modular Awake Loop** | ⚠️ 85% | All modules wired. Gate uses LLM (not simulated competition). No belief revision re-run yet. |
+| **M0 — Plumbing** | ✅ 95% | All components tested individually. Full e2e with Telegram pending. |
+| **M1 — Full Modular Awake Loop** | ⚠️ 85% | All modules wired and tested. Gate uses LLM (not simulated competition). No belief revision re-run yet. |
 | **M2 — Sleep Consolidation** | ❌ 0% | Not started. Directory scaffolded only. |
 | **M3 — Website** | ⚠️ 70% | Lab + public routes built. 4-panel layout simplified to list view. |
 | **M4 — Time-Sensing** | ⚠️ 60% | Worker supports ticks. Inner monologue not separate module. |
@@ -445,13 +445,13 @@ tags            TEXT[]
 
 | Component | Location | Status | Notes |
 |-----------|----------|--------|-------|
-| **sima-core** | `packages/sima-core/` | ✅ Complete | Types, events, IDs, time utilities |
-| **sima-llm** | `packages/sima-llm/` | ⚠️ Skeleton | Router exists, provider implementations missing |
+| **sima-core** | `packages/sima-core/` | ✅ Complete | Types, events, IDs, time utilities (6 unit tests) |
+| **sima-llm** | `packages/sima-llm/` | ✅ Complete | OpenAI provider working (6 integration tests) |
 | **sima-prompts** | `packages/sima-prompts/` | ✅ Complete | Registry + renderer, 10 YAML prompts |
-| **sima-storage** | `packages/sima-storage/` | ✅ Complete | Models, repository, migrations, S3 helpers |
-| **orchestrator** | `services/orchestrator/` | ⚠️ 90% | Awake loop wired, needs LLM providers |
+| **sima-storage** | `packages/sima-storage/` | ✅ Complete | Models, repository, migrations (7 integration tests) |
+| **orchestrator** | `services/orchestrator/` | ✅ Complete | Awake loop + module runner (4 integration tests) |
 | **ingest-api** | `services/ingest-api/` | ✅ Complete | FastAPI + webhook + SQS |
-| **api** | `services/api/` | ✅ Complete | REST + WebSocket + auth |
+| **api** | `services/api/` | ✅ Complete | REST + WebSocket + auth (6 integration tests) |
 | **web** | `services/web/` | ⚠️ 80% | Next.js app, needs 4-panel public view |
 | **sleep** | `services/sleep/` | ❌ Empty | Not implemented |
 
@@ -489,29 +489,31 @@ tags            TEXT[]
    - Current: Simplified trace list view
    - Impact: Less immersive observation experience
 
-### What's Working (Pre-Testing)
+### What's Working (Tested ✅)
 
-- [x] Database schema and migrations
+- [x] Database schema and migrations (fixed enum values, BM25 syntax)
 - [x] Event persistence layer
-- [x] Trace and event repositories
+- [x] Trace and event repositories (7 integration tests)
 - [x] Telegram webhook reception
 - [x] SQS message enqueueing
+- [x] LLM integration - OpenAI provider (6 integration tests)
 - [x] Awake loop orchestration (all 7 modules)
+- [x] Module runner (perception, attention gate, speaker - 4 integration tests)
 - [x] Prompt loading and rendering
-- [x] REST API for traces/events/metrics
+- [x] REST API for traces/events/metrics (6 integration tests)
 - [x] WebSocket endpoint (server-side)
 - [x] Lab authentication (JWT)
 - [x] Admin pause/resume
 - [x] Web UI (public + lab routes)
 - [x] Dev scripts (dev_up.sh, seed_demo_trace.py)
+- [x] Test framework (29 tests: 6 unit, 23 integration)
 
 ### What Needs Testing
 
-- [ ] End-to-end: Telegram → SQS → orchestrator → DB → API → Web
-- [ ] LLM integration (need provider implementations)
+- [ ] End-to-end: Telegram → SQS → orchestrator → DB → API → Web (individual components verified)
 - [ ] WebSocket client receiving events
-- [ ] Migration on fresh database
 - [ ] Docker builds for all services
+- [ ] AWS deployment
 
 ### What's Not Started
 
@@ -525,7 +527,6 @@ tags            TEXT[]
 - [ ] Telegram channel posting
 - [ ] 4-panel public website
 - [ ] Indicator metrics computation (real values)
-- [ ] Tests
 
 ---
 
