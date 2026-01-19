@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AttentionComparisonResult",
+  "description": "AST predict-compare result showing control success rate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["prior_prediction", "actual_focus", "control_success_rate", "control_notes"],
+  "properties": {
+    "prior_prediction": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "IDs predicted to be in focus from previous tick"
+    },
+    "actual_focus": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "IDs that actually entered the workspace this tick"
+    },
+    "control_success_rate": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Fraction of predicted items that actually appeared in focus"
+    },
+    "control_notes": {
+      "type": "string",
+      "description": "Human-readable summary of prediction accuracy"
+    },
+    "correct_predictions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "IDs that were both predicted and actually focused"
+    },
+    "missed_predictions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "IDs that were predicted but did not appear in focus"
+    },
+    "unexpected_focus": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "IDs that appeared in focus but were not predicted"
+    }
+  }
+}

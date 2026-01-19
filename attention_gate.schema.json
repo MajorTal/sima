@@ -6,8 +6,36 @@
   "required": ["workspace_capacity_k", "selected_ids", "rejected_ids", "selection_rationale"],
   "properties": {
     "workspace_capacity_k": { "type": "integer", "minimum": 1, "maximum": 20 },
+    "selected": {
+      "type": "array",
+      "items": { "type": "object" },
+      "description": "Full candidate objects that were selected"
+    },
     "selected_ids": { "type": "array", "items": { "type": "string" } },
     "rejected_ids": { "type": "array", "items": { "type": "string" } },
-    "selection_rationale": { "type": "string" }
+    "selection_rationale": { "type": "string" },
+    "competition_trace": {
+      "type": "array",
+      "description": "Per-iteration activation trace for telemetry",
+      "items": {
+        "type": "object",
+        "properties": {
+          "iteration": { "type": "integer" },
+          "activations": { "type": "object" }
+        }
+      }
+    },
+    "iterations_run": {
+      "type": "integer",
+      "description": "Number of competition iterations executed"
+    },
+    "convergence_delta": {
+      "type": "number",
+      "description": "How much activations changed in the final iteration"
+    },
+    "inhibition_events": {
+      "type": "integer",
+      "description": "Total lateral inhibition events during competition"
+    }
   }
 }

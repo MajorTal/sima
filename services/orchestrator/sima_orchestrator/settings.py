@@ -49,6 +49,15 @@ class Settings:
     workspace_capacity: int = field(
         default_factory=lambda: int(os.environ.get("WORKSPACE_CAPACITY_K", "7"))
     )
+    competition_iterations: int = field(
+        default_factory=lambda: int(os.environ.get("COMPETITION_ITERATIONS", "10"))
+    )
+    belief_revision_threshold: float = field(
+        default_factory=lambda: float(os.environ.get("BELIEF_REVISION_THRESHOLD", "0.4"))
+    )
+    max_belief_revision_iterations: int = field(
+        default_factory=lambda: int(os.environ.get("MAX_BELIEF_REVISION_ITERATIONS", "2"))
+    )
 
     # Time-sensing
     minute_tick_enabled: bool = field(
@@ -59,6 +68,11 @@ class Settings:
         == "true"
     )
     timezone: str = field(default_factory=lambda: os.environ.get("TIMEZONE", "UTC"))
+
+    # Telegram telemetry
+    telegram_telemetry_enabled: bool = field(
+        default_factory=lambda: os.environ.get("TELEGRAM_TELEMETRY_ENABLED", "true").lower() == "true"
+    )
 
     # Database
     database_url: str = field(

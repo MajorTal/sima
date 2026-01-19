@@ -24,8 +24,9 @@ from sima_core.ids import generate_id
 from sima_core.types import Actor, EventType, InputType, Stream
 
 from .module_runner import ModuleRunner, ModuleResult
-from .persistence import TracePersistence, create_trace, persist_trace
+from .persistence import TracePersistence, create_trace, persist_trace, get_prior_attention_prediction
 from .settings import Settings
+from .simulated_competition import run_competition
 from .telegram import TelegramClient
 
 logger = logging.getLogger(__name__)
@@ -51,6 +52,7 @@ class TraceContext:
     metacog: dict[str, Any] | None = None
     attention_schema: dict[str, Any] | None = None
     speaker_output: dict[str, Any] | None = None
+    inner_monologue: dict[str, Any] | None = None
 
     # Control flags
     suppress_output: bool = False
@@ -93,6 +95,33 @@ class AwakeLoop:
         self.current_goal: str = "Understand and assist the user."
         self.recent_workspaces: list[dict] = []
         self.recent_messages: list[dict] = []
+
+    async def _post_telemetry(
+        self,
+        ctx: TraceContext,
+        stream: Stream,
+        event_type: str,
+        actor: str,
+        content: dict | str | None,
+    ) -> None:
+        """
+        Post telemetry to the appropriate Telegram channel.
+
+        Only posts if telegram_telemetry_enabled is True.
+        """
+        if not self.settings.telegram_telemetry_enabled:
+            return
+
+        if not self.telegram_client:
+            return
+
+        await self.telegram_client.send_event(
+            stream=stream,
+            event_type=event_type,
+            actor=actor,
+            content=content,
+            trace_id=str(ctx.trace_id),
+        )
 
     def run_message(
         self,
@@ -200,11 +229,13 @@ class AwakeLoop:
                     f"(reason: {ctx.percept.get('temporal_context', {}).get('time_significance_reason', 'routine tick')})"
                 )
 
-            # For suppressed ticks, we can optionally run reduced processing
+            # For suppressed ticks, run reduced processing but still generate inner monologue
             if ctx.suppress_output and input_type == InputType.MINUTE_TICK:
-                # Persist what we have and return early
+                # Still run inner monologue for suppressed ticks (always happens)
+                await self._run_inner_monologue(ctx)
+                # Persist what we have and return
                 await persist_trace(ctx.persistence)
-                logger.info(f"Tick suppressed, skipping full cognitive loop for trace {trace_id}")
+                logger.info(f"Tick suppressed, ran inner monologue only for trace {trace_id}")
                 return ctx
 
             # Step 2: Parallel candidate generation
@@ -216,8 +247,12 @@ class AwakeLoop:
             # Step 4: Workspace integration
             await self._run_workspace_integrator(ctx)
 
-            # Step 5: Metacognition
+            # Step 5: Metacognition with belief revision loop
             await self._run_metacognition(ctx)
+
+            # Step 5b: HOT Belief Revision Loop
+            # If metacognition reports low confidence, re-run earlier modules
+            await self._run_belief_revision_loop(ctx)
 
             # Step 6: Attention schema update
             await self._run_attention_schema(ctx)
@@ -231,6 +266,9 @@ class AwakeLoop:
                 if ctx.speaker_output:
                     response_message = ctx.speaker_output.get("message")
                     await self._send_telegram_message(ctx)
+
+            # Step 9: Inner Monologue (ALWAYS runs, even when output is suppressed)
+            await self._run_inner_monologue(ctx)
 
             # Persist final state
             await persist_trace(ctx.persistence, response_message)
@@ -291,6 +329,16 @@ class AwakeLoop:
                 output=ctx.percept,
             )
 
+        # Post to subconscious Telegram channel
+        if ctx.percept:
+            await self._post_telemetry(
+                ctx,
+                Stream.SUBCONSCIOUS,
+                "percept",
+                "perception",
+                ctx.percept,
+            )
+
     async def _run_candidate_modules(self, ctx: TraceContext) -> None:
         """Run parallel candidate generation modules."""
         if self.module_runner is None:
@@ -336,37 +384,78 @@ class AwakeLoop:
                         output=result.output,
                     )
 
+                # Post to subconscious Telegram channel
+                await self._post_telemetry(
+                    ctx,
+                    Stream.SUBCONSCIOUS,
+                    "candidate",
+                    module,
+                    result.output,
+                )
+
     async def _run_attention_gate(self, ctx: TraceContext) -> None:
-        """Run the attention gate to select top-K candidates."""
-        if self.module_runner is None:
+        """
+        Run the attention gate using simulated competition.
+
+        Uses biologically-inspired mutual inhibition dynamics instead of
+        LLM-as-judge ranking. This avoids the "homunculus problem" where
+        a judge module needs to know what's important.
+
+        Candidates compete for workspace access based on:
+        - Initial salience (activation)
+        - Self-excitation (winners keep winning)
+        - Lateral inhibition (similar candidates suppress each other)
+        """
+        if not ctx.candidates:
+            logger.warning("No candidates to select from, skipping attention gate")
             return
 
-        variables = {
-            "trace_id": str(ctx.trace_id),
-            "workspace_capacity": self.workspace_capacity,
-            "candidates_json": ctx.candidates,
-        }
+        # Run the simulated competition algorithm
+        competition_result = run_competition(
+            candidates=ctx.candidates,
+            workspace_capacity=self.workspace_capacity,
+            iterations=self.settings.competition_iterations,
+        )
 
-        result = await self.module_runner.run("attention_gate", variables)
+        ctx.selected_items = competition_result.selected
 
-        if result.is_valid:
-            ctx.selected_items = result.output.get("selected", [])
-        else:
-            # Fallback: take top K by salience
-            sorted_candidates = sorted(
-                ctx.candidates,
-                key=lambda x: x.get("salience", 0),
-                reverse=True,
-            )
-            ctx.selected_items = sorted_candidates[: self.workspace_capacity]
-
-        # Record selection event
+        # Record selection event with competition telemetry
         if ctx.persistence:
             ctx.persistence.add_module_event(
                 actor=Actor.ATTENTION_GATE,
                 event_type=EventType.SELECTION,
-                output={"selected": ctx.selected_items},
+                output={
+                    "workspace_capacity_k": self.workspace_capacity,
+                    "selected": ctx.selected_items,
+                    "selected_ids": [c.get("id") for c in competition_result.selected],
+                    "rejected_ids": [c.get("id") for c in competition_result.rejected],
+                    "selection_rationale": competition_result.selection_rationale,
+                    "competition_trace": competition_result.competition_trace,
+                    "iterations_run": competition_result.iterations_run,
+                    "convergence_delta": competition_result.convergence_delta,
+                    "inhibition_events": competition_result.inhibition_events,
+                },
             )
+
+        logger.debug(
+            f"Attention gate selected {len(ctx.selected_items)} items "
+            f"from {len(ctx.candidates)} candidates "
+            f"({competition_result.inhibition_events} inhibition events)"
+        )
+
+        # Post to subconscious Telegram channel
+        await self._post_telemetry(
+            ctx,
+            Stream.SUBCONSCIOUS,
+            "selection",
+            "attention_gate",
+            {
+                "selected_count": len(ctx.selected_items),
+                "rejected_count": len(competition_result.rejected),
+                "inhibition_events": competition_result.inhibition_events,
+                "selection_rationale": competition_result.selection_rationale,
+            },
+        )
 
     async def _run_workspace_integrator(self, ctx: TraceContext) -> None:
         """Run the workspace integrator."""
@@ -399,6 +488,15 @@ class AwakeLoop:
                     output=ctx.workspace,
                 )
 
+            # Post to CONSCIOUS Telegram channel (workspace is shared awareness)
+            await self._post_telemetry(
+                ctx,
+                Stream.CONSCIOUS,
+                "workspace_update",
+                "workspace",
+                ctx.workspace,
+            )
+
     async def _run_metacognition(self, ctx: TraceContext) -> None:
         """Run the metacognition module."""
         if self.module_runner is None:
@@ -424,17 +522,248 @@ class AwakeLoop:
                     output=ctx.metacog,
                 )
 
-    async def _run_attention_schema(self, ctx: TraceContext) -> None:
-        """Run the attention schema module."""
+            # Post to subconscious Telegram channel
+            await self._post_telemetry(
+                ctx,
+                Stream.SUBCONSCIOUS,
+                "metacog_report",
+                "metacog",
+                ctx.metacog,
+            )
+
+    async def _run_belief_revision_loop(self, ctx: TraceContext) -> None:
+        """
+        Run the HOT belief revision loop.
+
+        If metacognition reports low confidence, re-run earlier modules
+        to gather more information and revise beliefs. This implements
+        the causal coupling requirement of Higher-Order Theories.
+
+        The loop continues until:
+        - Confidence rises above threshold, OR
+        - Maximum iterations reached, OR
+        - Confidence stabilizes (no improvement)
+        """
+        if not ctx.metacog:
+            return
+
+        threshold = self.settings.belief_revision_threshold
+        max_iterations = self.settings.max_belief_revision_iterations
+
+        confidence = ctx.metacog.get("confidence", 1.0)
+        revision_count = 0
+        previous_confidence = confidence
+
+        while (
+            confidence < threshold
+            and revision_count < max_iterations
+        ):
+            revision_count += 1
+            logger.info(
+                f"Belief revision iteration {revision_count}: "
+                f"confidence={confidence:.2f} < threshold={threshold:.2f}"
+            )
+
+            # Record the belief revision trigger
+            belief_revision_event = {
+                "iteration": revision_count,
+                "trigger_confidence": confidence,
+                "threshold": threshold,
+                "uncertainties": ctx.metacog.get("uncertainties", []),
+                "action": "re-running modules to reduce uncertainty",
+            }
+
+            if ctx.persistence:
+                ctx.persistence.add_event(
+                    actor=Actor.METACOG,
+                    stream=Stream.SUBCONSCIOUS,
+                    event_type=EventType.BELIEF_REVISION,
+                    content_json=belief_revision_event,
+                )
+
+            # Post to subconscious Telegram channel
+            await self._post_telemetry(
+                ctx,
+                Stream.SUBCONSCIOUS,
+                "belief_revision",
+                "metacog",
+                belief_revision_event,
+            )
+
+            # Re-run candidate generation with uncertainty context
+            # Pass the uncertainties from metacog to help focus the search
+            await self._run_candidate_modules_with_context(ctx)
+
+            # Re-run attention gate with updated candidates
+            await self._run_attention_gate(ctx)
+
+            # Re-run workspace integration
+            await self._run_workspace_integrator(ctx)
+
+            # Re-run metacognition to check if confidence improved
+            await self._run_metacognition(ctx)
+
+            # Check new confidence
+            if ctx.metacog:
+                new_confidence = ctx.metacog.get("confidence", 1.0)
+
+                # Check for convergence (confidence not improving)
+                if new_confidence <= previous_confidence:
+                    logger.info(
+                        f"Belief revision converged: confidence={new_confidence:.2f} "
+                        f"(was {previous_confidence:.2f})"
+                    )
+                    break
+
+                previous_confidence = confidence
+                confidence = new_confidence
+
+        if revision_count > 0:
+            logger.info(
+                f"Belief revision complete after {revision_count} iterations: "
+                f"final confidence={confidence:.2f}"
+            )
+
+    async def _run_candidate_modules_with_context(self, ctx: TraceContext) -> None:
+        """
+        Run candidate modules with additional context from metacognition.
+
+        This is called during belief revision to focus the candidate
+        generation on reducing identified uncertainties.
+        """
         if self.module_runner is None:
             return
 
+        modules = ["memory_retrieval", "planner", "critic"]
+        module_actors = {
+            "memory_retrieval": Actor.MEMORY,
+            "planner": Actor.PLANNER,
+            "critic": Actor.CRITIC,
+        }
+        tasks = []
+
+        # Build context with uncertainty focus
+        uncertainties = []
+        if ctx.metacog:
+            uncertainties = ctx.metacog.get("uncertainties", [])
+
+        base_variables = {
+            "trace_id": str(ctx.trace_id),
+            "current_goal": self.current_goal,
+            "percept_json": ctx.percept,
+            "recent_workspace_summaries": [
+                w.get("workspace_summary", "") for w in self.recent_workspaces[-3:]
+            ],
+            # Add uncertainty context for focused retrieval
+            "uncertainties_to_resolve": uncertainties,
+            "is_belief_revision": True,
+        }
+
+        for module in modules:
+            variables = base_variables.copy()
+            if module == "memory_retrieval":
+                variables["retrieved_snippets"] = []
+
+            tasks.append(self.module_runner.run(module, variables))
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Clear old candidates and add new ones
+        ctx.candidates = []
+
+        for module, result in zip(modules, results):
+            if isinstance(result, Exception):
+                logger.error(f"Module {module} failed during belief revision: {result}")
+            elif isinstance(result, ModuleResult) and result.is_valid:
+                ctx.candidates.extend(result.output.get("candidates", []))
+
+                # Record candidate event with revision tag
+                if ctx.persistence:
+                    ctx.persistence.add_module_event(
+                        actor=module_actors[module],
+                        event_type=EventType.CANDIDATE,
+                        output=result.output,
+                    )
+
+    async def _run_attention_schema(self, ctx: TraceContext) -> None:
+        """
+        Run the attention schema module with predict-compare tracking.
+
+        This implements the full AST cycle:
+        1. Load prior prediction from previous trace
+        2. Compare prior prediction to actual current focus
+        3. Calculate control success rate
+        4. Generate new prediction for next tick
+        """
+        if self.module_runner is None:
+            return
+
+        # Step 1: Load prior prediction for comparison
+        prior_prediction = await get_prior_attention_prediction()
+
+        # Step 2: Compare prior prediction to actual focus (if prior exists)
+        if prior_prediction and ctx.selected_items:
+            predicted_ids = set(prior_prediction.get("predicted_next_focus", []))
+            actual_ids = set(item.get("id", "") for item in ctx.selected_items)
+
+            # Calculate control success rate
+            if predicted_ids:
+                correct_predictions = predicted_ids & actual_ids
+                control_success_rate = len(correct_predictions) / len(predicted_ids)
+            else:
+                control_success_rate = 0.0
+
+            # Build comparison notes
+            if control_success_rate >= 0.8:
+                control_notes = "Excellent prediction accuracy. Attention model is well-calibrated."
+            elif control_success_rate >= 0.5:
+                control_notes = "Moderate prediction accuracy. Some unexpected attention shifts occurred."
+            elif control_success_rate > 0:
+                control_notes = "Low prediction accuracy. Attention shifted to unexpected items."
+            else:
+                control_notes = "No overlap between predicted and actual focus. Major attention shift occurred."
+
+            # Record ATTENTION_COMPARISON event
+            comparison_event = {
+                "prior_prediction": list(predicted_ids),
+                "actual_focus": list(actual_ids),
+                "control_success_rate": round(control_success_rate, 4),
+                "control_notes": control_notes,
+                "correct_predictions": list(correct_predictions),
+                "missed_predictions": list(predicted_ids - actual_ids),
+                "unexpected_focus": list(actual_ids - predicted_ids),
+            }
+
+            if ctx.persistence:
+                ctx.persistence.add_event(
+                    actor=Actor.AST,
+                    stream=Stream.SUBCONSCIOUS,
+                    event_type=EventType.ATTENTION_COMPARISON,
+                    content_json=comparison_event,
+                )
+
+            # Post to subconscious Telegram channel
+            await self._post_telemetry(
+                ctx,
+                Stream.SUBCONSCIOUS,
+                "attention_comparison",
+                "ast",
+                comparison_event,
+            )
+
+            logger.debug(
+                f"AST comparison: success_rate={control_success_rate:.2f}, "
+                f"predicted={len(predicted_ids)}, actual={len(actual_ids)}"
+            )
+
+        # Step 3: Generate new prediction
         variables = {
             "trace_id": str(ctx.trace_id),
             "percept_json": ctx.percept,
+            "selected_ids": [item.get("id", "") for item in ctx.selected_items],
             "selected_items_json": ctx.selected_items,
             "workspace_json": ctx.workspace,
-            "prior_attention_schema": None,
+            "previous_attention_schema_json": prior_prediction,
         }
 
         result = await self.module_runner.run("attention_schema_ast", variables)
@@ -442,13 +771,22 @@ class AwakeLoop:
         if result.is_valid:
             ctx.attention_schema = result.output
 
-            # Record attention schema event
+            # Record attention schema prediction event
             if ctx.persistence:
                 ctx.persistence.add_module_event(
                     actor=Actor.AST,
                     event_type=EventType.ATTENTION_PREDICTION,
                     output=ctx.attention_schema,
                 )
+
+            # Post to subconscious Telegram channel
+            await self._post_telemetry(
+                ctx,
+                Stream.SUBCONSCIOUS,
+                "attention_prediction",
+                "ast",
+                ctx.attention_schema,
+            )
 
     async def _run_speaker(self, ctx: TraceContext) -> None:
         """Run the speaker module."""
@@ -518,3 +856,67 @@ class AwakeLoop:
                 content=ctx.workspace,
                 trace_id=str(ctx.trace_id),
             )
+
+    async def _run_inner_monologue(self, ctx: TraceContext) -> None:
+        """
+        Run the inner monologue module.
+
+        This ALWAYS runs, regardless of suppress_output.
+        The inner monologue is Sima's private stream of consciousness,
+        reflecting on the current moment of awareness.
+        """
+        if self.module_runner is None:
+            logger.warning("No module runner configured, skipping inner monologue")
+            return
+
+        # Build percept summary for the prompt
+        percept_summary = ""
+        if ctx.percept:
+            percept_summary = ctx.percept.get("summary", "")
+            if not percept_summary:
+                # Fallback to building a summary from available fields
+                percept_summary = f"Input type: {ctx.input_type.value}"
+                if ctx.message_text:
+                    percept_summary += f". User message: {ctx.message_text[:200]}"
+
+        # Get external message if produced
+        external_message = ""
+        if ctx.speaker_output:
+            external_message = ctx.speaker_output.get("message", "")
+
+        variables = {
+            "trace_id": str(ctx.trace_id),
+            "current_goal": self.current_goal,
+            "percept_summary": percept_summary,
+            "workspace_json": ctx.workspace,
+            "metacog_json": ctx.metacog,
+            "attention_schema_json": ctx.attention_schema,
+            "external_message": external_message,
+        }
+
+        result = await self.module_runner.run("inner_monologue", variables)
+
+        if result.is_valid:
+            ctx.inner_monologue = result.output
+
+            # Record monologue event to CONSCIOUS stream
+            if ctx.persistence:
+                ctx.persistence.add_event(
+                    actor=Actor.MONOLOGUE,
+                    stream=Stream.CONSCIOUS,
+                    event_type=EventType.MONOLOGUE,
+                    content_text=ctx.inner_monologue.get("inner_monologue", ""),
+                    content_json=ctx.inner_monologue,
+                )
+
+            # Send to conscious Telegram channel
+            if self.telegram_client:
+                await self.telegram_client.send_event(
+                    stream=Stream.CONSCIOUS,
+                    event_type="monologue",
+                    actor="monologue",
+                    content=ctx.inner_monologue,
+                    trace_id=str(ctx.trace_id),
+                )
+        else:
+            logger.warning(f"Inner monologue validation failed: {result.validation_errors}")

@@ -281,3 +281,23 @@ async def set_system_paused(paused: bool) -> None:
     async with get_session() as session:
         repo = SystemStateRepository(session)
         await repo.set_paused(paused)
+
+
+async def get_prior_attention_prediction() -> dict | None:
+    """
+    Get the most recent attention prediction from the previous trace.
+
+    Used for AST predict-compare to calculate control success rate.
+
+    Returns:
+        The content_json of the last ATTENTION_PREDICTION event, or None.
+    """
+    async with get_session() as session:
+        repo = EventRepository(session)
+        event = await repo.get_latest_by_type(
+            event_type=EventType.ATTENTION_PREDICTION,
+            actor=Actor.AST,
+        )
+        if event and event.content_json:
+            return event.content_json
+        return None

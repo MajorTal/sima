@@ -429,17 +429,17 @@ tags            TEXT[]
 
 ## 12.1 Implementation Status
 
-> **Last Updated**: 2025-01-19 (post-testing)
+> **Last Updated**: 2026-01-19
 
 ### Milestone Status
 
 | Milestone | Status | Notes |
 |-----------|--------|-------|
 | **M0 — Plumbing** | ✅ 95% | All components tested individually. Full e2e with Telegram pending. |
-| **M1 — Full Modular Awake Loop** | ⚠️ 85% | All modules wired and tested. Gate uses LLM (not simulated competition). No belief revision re-run yet. |
+| **M1 — Full Modular Awake Loop** | ✅ 100% | All modules complete. Simulated competition gate, belief revision loop, AST predict-compare, inner monologue all implemented. |
 | **M2 — Sleep Consolidation** | ❌ 0% | Not started. Directory scaffolded only. |
 | **M3 — Website** | ⚠️ 70% | Lab + public routes built. 4-panel layout simplified to list view. |
-| **M4 — Time-Sensing** | ⚠️ 60% | Worker supports ticks. Inner monologue not separate module. |
+| **M4 — Time-Sensing** | ✅ 90% | Worker supports ticks. Inner monologue now runs on every tick. |
 
 ### Component Status
 
@@ -447,7 +447,7 @@ tags            TEXT[]
 |-----------|----------|--------|-------|
 | **sima-core** | `packages/sima-core/` | ✅ Complete | Types, events, IDs, time utilities (6 unit tests) |
 | **sima-llm** | `packages/sima-llm/` | ✅ Complete | OpenAI provider working (6 integration tests) |
-| **sima-prompts** | `packages/sima-prompts/` | ✅ Complete | Registry + renderer, 10 YAML prompts |
+| **sima-prompts** | `packages/sima-prompts/` | ✅ Complete | Registry + renderer, 11 YAML prompts (added inner_monologue) |
 | **sima-storage** | `packages/sima-storage/` | ✅ Complete | Models, repository, migrations (7 integration tests) |
 | **orchestrator** | `services/orchestrator/` | ✅ Complete | Awake loop + module runner (4 integration tests) |
 | **ingest-api** | `services/ingest-api/` | ✅ Complete | FastAPI + webhook + SQS |
@@ -457,32 +457,34 @@ tags            TEXT[]
 
 ### Implementation Gaps
 
-**Architectural deviations from spec:**
+**Resolved (2026-01-19):**
 
-1. **Attention Gate** (Section 2.2)
-   - Spec: Simulated competition with mutual inhibition
-   - Current: LLM-based selection via prompt
-   - Impact: Missing biologically-inspired dynamics
+1. ~~**Attention Gate** (Section 2.2)~~ ✅ RESOLVED
+   - Now uses simulated competition with mutual inhibition (`simulated_competition.py`)
+   - Tracks activation history, inhibition events, convergence delta
+   - Configurable via `COMPETITION_ITERATIONS` env var
 
-2. **Inner Monologue** (Section 2.1, Step 9)
-   - Spec: Separate step, always generated, goes to conscious channel
-   - Current: Not implemented as separate module
-   - Impact: No persistent inner narrative stream
+2. ~~**Inner Monologue** (Section 2.1, Step 9)~~ ✅ RESOLVED
+   - New module: `prompts/inner_monologue.yaml` + `inner_monologue.schema.json`
+   - Runs on EVERY tick (even suppressed ones)
+   - Posts to CONSCIOUS stream
 
-3. **HOT Belief Revision Loop** (Section 2.2)
-   - Spec: Low confidence triggers re-run of earlier modules
-   - Current: Metacog runs but doesn't trigger re-runs
-   - Impact: Metacognition not causally coupled
+3. ~~**HOT Belief Revision Loop** (Section 2.2)~~ ✅ RESOLVED
+   - Low confidence (< threshold) triggers re-run of candidate modules
+   - Configurable via `BELIEF_REVISION_THRESHOLD` and `MAX_BELIEF_REVISION_ITERATIONS`
+   - Records `BELIEF_REVISION` events with uncertainty context
 
-4. **AST Predict-Compare** (Section 2.2)
-   - Spec: Compare prediction to actual, log delta
-   - Current: Prediction generated but comparison not logged
-   - Impact: Missing control success rate metric
+4. ~~**AST Predict-Compare** (Section 2.2)~~ ✅ RESOLVED
+   - Loads prior prediction from DB, compares with actual focus
+   - Calculates `control_success_rate` metric
+   - Records `ATTENTION_COMPARISON` events
 
-5. **Telegram Channel Posting** (Section 2.3)
-   - Spec: Conscious/subconscious streams to separate channels
-   - Current: Client built but not wired to post during tick
-   - Impact: No live telemetry streams
+5. ~~**Telegram Channel Posting** (Section 2.3)~~ ✅ RESOLVED
+   - All module outputs now post to appropriate Telegram channels
+   - Configurable via `TELEGRAM_TELEMETRY_ENABLED` env var
+   - Perception, candidates, gate, workspace, metacog, AST all wired
+
+**Remaining gaps:**
 
 6. **Public Website 4-Panel** (Section 8.2)
    - Spec: Memories, Subconscious, Inner Monologue, External Chat
@@ -507,6 +509,11 @@ tags            TEXT[]
 - [x] Web UI (public + lab routes)
 - [x] Dev scripts (dev_up.sh, seed_demo_trace.py)
 - [x] Test framework (29 tests: 6 unit, 23 integration)
+- [x] Inner monologue module (runs every tick, posts to CONSCIOUS)
+- [x] Simulated competition gate (mutual inhibition dynamics)
+- [x] HOT belief revision loop (re-runs on low confidence)
+- [x] AST predict-compare (control success rate tracking)
+- [x] Telegram channel posting (all streams wired)
 
 ### What Needs Testing
 
@@ -514,17 +521,13 @@ tags            TEXT[]
 - [ ] WebSocket client receiving events
 - [ ] Docker builds for all services
 - [ ] AWS deployment
+- [ ] New M1 features: simulated competition, belief revision, AST comparison
 
 ### What's Not Started
 
 - [ ] Sleep consolidation service
 - [ ] Memory tiering (L1/L2/L3)
 - [ ] genesis.md as L3 core memory
-- [ ] Inner monologue module
-- [ ] Simulated competition gate
-- [ ] Belief revision re-run loop
-- [ ] AST comparison logging
-- [ ] Telegram channel posting
 - [ ] 4-panel public website
 - [ ] Indicator metrics computation (real values)
 

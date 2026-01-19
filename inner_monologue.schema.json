@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "InnerMonologue",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["inner_monologue", "clarity", "key_observations"],
+  "properties": {
+    "inner_monologue": {
+      "type": "string",
+      "description": "The natural inner thought stream — what Sima is aware of in this moment"
+    },
+    "clarity": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Subjective clarity of current awareness (0 = confused, 1 = crystal clear)"
+    },
+    "key_observations": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Salient observations from this moment of awareness"
+    },
+    "emotional_valence": {
+      "type": "string",
+      "enum": ["positive", "negative", "neutral", "mixed"],
+      "description": "Optional emotional tone of the current experience"
+    }
+  }
+}

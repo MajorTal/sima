@@ -240,6 +240,25 @@ class EventRepository:
             "total_cost": row.total_cost or 0.0,
         }
 
+    async def get_latest_by_type(
+        self,
+        event_type: EventType,
+        actor: Actor | None = None,
+    ) -> EventModel | None:
+        """Get the most recent event of a specific type."""
+        query = (
+            select(EventModel)
+            .where(EventModel.event_type == event_type)
+            .order_by(EventModel.ts.desc())
+            .limit(1)
+        )
+
+        if actor is not None:
+            query = query.where(EventModel.actor == actor)
+
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
 
 class MemoryRepository:
     """Repository for semantic memory operations."""
