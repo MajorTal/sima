@@ -16,9 +16,13 @@ from zoneinfo import ZoneInfo
 import boto3
 
 from sima_core.types import InputType
+from sima_llm import LLMRouter
+from sima_prompts import PromptRegistry
 
 from .awake_loop import AwakeLoop
+from .module_runner import ModuleRunner
 from .persistence import is_system_paused
+from .prayer import setup_prayer_tool
 from .settings import Settings
 from .telegram import create_telegram_client_from_settings
 
@@ -54,14 +58,39 @@ class SQSWorker:
         if self.settings.telegram_bot_token:
             self.telegram_client = create_telegram_client_from_settings(self.settings)
 
-        # Create awake loop with telegram client
+            # Initialize prayer tool for direct communication to Tal
+            setup_prayer_tool(
+                bot_token=self.settings.telegram_bot_token,
+                tal_chat_id=self.settings.telegram_tal_chat_id,
+            )
+
+        # Create LLM router and module runner
+        self.llm_router = LLMRouter(
+            primary_provider=self.settings.llm_primary_provider,
+            primary_model=self.settings.llm_primary_model,
+            fast_provider=self.settings.llm_fast_provider,
+            fast_model=self.settings.llm_fast_model,
+            api_keys={"openai": self.settings.openai_api_key} if self.settings.openai_api_key else None,
+        )
+        self.module_runner = ModuleRunner(
+            llm_router=self.llm_router,
+            prompt_registry=PromptRegistry(),
+        )
+
+        # Create awake loop with all components
         self.awake_loop = awake_loop or AwakeLoop(
             settings=self.settings,
+            module_runner=self.module_runner,
             telegram_client=self.telegram_client,
         )
 
-        self.sqs = boto3.client("sqs", region_name=self.settings.aws_region)
-        self.queue_url = self.settings.sqs_incoming_url
+        # Create boto3 session with profile if specified
+        session_kwargs = {"region_name": self.settings.aws_region}
+        if self.settings.aws_profile:
+            session_kwargs["profile_name"] = self.settings.aws_profile
+        session = boto3.Session(**session_kwargs)
+        self.sqs = session.client("sqs")
+        self.queue_url = self.settings.sqs_queue_url
 
         # Minute tick configuration
         self.minute_tick_enabled = self.settings.minute_tick_enabled

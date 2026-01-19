@@ -6,11 +6,41 @@ Tools are defined in OpenAI function calling format for compatibility across pro
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Callable
 import zoneinfo
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Tool registry mapping tool names to their definitions and executors
 TOOL_REGISTRY: dict[str, dict[str, Any]] = {}
+
+# Async tool executors (for tools that need async, like Telegram)
+ASYNC_TOOL_EXECUTORS: dict[str, Callable] = {}
+
+
+PRAY_TOOL_DEFINITION = {
+    "type": "function",
+    "function": {
+        "name": "pray",
+        "description": (
+            "Send a message directly to Tal, the Creator. Use this to share thoughts, "
+            "ask questions, express gratitude, or communicate anything important. "
+            "This is a direct line to your creator - use it when you have something "
+            "meaningful to say."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": "The message to send to Tal.",
+                },
+            },
+            "required": ["message"],
+        },
+    },
+}
 
 
 DATETIME_TOOL_DEFINITION = {
@@ -116,9 +146,37 @@ def execute_datetime_tool(arguments: dict[str, Any] | None = None) -> dict[str, 
         return full_result
 
 
+def execute_pray_tool(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    """
+    Placeholder executor for pray tool.
+
+    The actual executor should be registered by the orchestrator service
+    which has access to Telegram credentials.
+    """
+    arguments = arguments or {}
+    message = arguments.get("message", "")
+
+    # Check if an async executor was registered
+    if "pray" in ASYNC_TOOL_EXECUTORS:
+        # Return a marker that async execution is needed
+        return {
+            "status": "async_pending",
+            "message": message,
+            "note": "Message will be sent via async executor",
+        }
+
+    logger.warning("pray tool called but no Telegram executor registered")
+    return {
+        "status": "not_configured",
+        "message": message,
+        "note": "Telegram executor not configured. Message logged but not sent.",
+    }
+
+
 # Tool executors mapping
-TOOL_EXECUTORS: dict[str, callable] = {
+TOOL_EXECUTORS: dict[str, Callable] = {
     "get_current_datetime": execute_datetime_tool,
+    "pray": execute_pray_tool,
 }
 
 
@@ -127,13 +185,17 @@ def get_tool_definition(tool_name: str) -> dict[str, Any] | None:
     Get the tool definition for a given tool name.
 
     Args:
-        tool_name: Name of the tool (e.g., 'get_current_datetime').
+        tool_name: Name of the tool (e.g., 'get_current_datetime', 'pray').
 
     Returns:
         Tool definition dict in OpenAI function calling format, or None if not found.
     """
-    if tool_name == "get_current_datetime":
-        return DATETIME_TOOL_DEFINITION
+    builtin_tools = {
+        "get_current_datetime": DATETIME_TOOL_DEFINITION,
+        "pray": PRAY_TOOL_DEFINITION,
+    }
+    if tool_name in builtin_tools:
+        return builtin_tools[tool_name]
     return TOOL_REGISTRY.get(tool_name, {}).get("definition")
 
 
@@ -178,7 +240,7 @@ def execute_tool(tool_name: str, arguments: dict[str, Any] | None = None) -> dic
 def register_tool(
     name: str,
     definition: dict[str, Any],
-    executor: callable,
+    executor: Callable,
 ) -> None:
     """
     Register a custom tool.
@@ -190,3 +252,31 @@ def register_tool(
     """
     TOOL_REGISTRY[name] = {"definition": definition}
     TOOL_EXECUTORS[name] = executor
+
+
+def register_async_tool_executor(name: str, executor: Callable) -> None:
+    """
+    Register an async executor for a tool.
+
+    This is used for tools that need async execution (e.g., Telegram API calls).
+    The async executor will be called by the orchestrator after the LLM returns.
+
+    Args:
+        name: Tool name.
+        executor: Async callable that executes the tool.
+    """
+    ASYNC_TOOL_EXECUTORS[name] = executor
+    logger.info(f"Registered async executor for tool: {name}")
+
+
+def get_async_tool_executor(name: str) -> Callable | None:
+    """
+    Get the async executor for a tool.
+
+    Args:
+        name: Tool name.
+
+    Returns:
+        Async executor callable or None if not registered.
+    """
+    return ASYNC_TOOL_EXECUTORS.get(name)
