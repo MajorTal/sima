@@ -9,15 +9,18 @@ Handles:
 
 import json
 import logging
-import os
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
 import boto3
 
+from sima_core.types import InputType
+
 from .awake_loop import AwakeLoop
+from .persistence import is_system_paused
 from .settings import Settings
+from .telegram import create_telegram_client_from_settings
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +48,17 @@ class SQSWorker:
             awake_loop: Awake loop instance for processing.
         """
         self.settings = settings or Settings()
-        self.awake_loop = awake_loop or AwakeLoop(settings=self.settings)
+
+        # Create telegram client
+        self.telegram_client = None
+        if self.settings.telegram_bot_token:
+            self.telegram_client = create_telegram_client_from_settings(self.settings)
+
+        # Create awake loop with telegram client
+        self.awake_loop = awake_loop or AwakeLoop(
+            settings=self.settings,
+            telegram_client=self.telegram_client,
+        )
 
         self.sqs = boto3.client("sqs", region_name=self.settings.aws_region)
         self.queue_url = self.settings.sqs_incoming_url
@@ -148,7 +161,7 @@ class SQSWorker:
         )
 
         self.awake_loop.run_tick(
-            input_type="minute_tick",
+            input_type=InputType.MINUTE_TICK,
             tick_metadata=tick_metadata,
         )
 
@@ -171,7 +184,7 @@ class SQSWorker:
         logger.info(f"Handling autonomous tick: {now.isoformat()}")
 
         self.awake_loop.run_tick(
-            input_type="autonomous_tick",
+            input_type=InputType.AUTONOMOUS_TICK,
             tick_metadata=tick_metadata,
         )
 
@@ -187,6 +200,7 @@ class SQSWorker:
         message = update.get("message", {})
         text = message.get("text", "")
         chat_id = message.get("chat", {}).get("id")
+        message_id = message.get("message_id")
         from_user = message.get("from", {})
 
         if not text:
@@ -196,23 +210,11 @@ class SQSWorker:
         logger.info(f"Handling Telegram message from chat {chat_id}")
 
         self.awake_loop.run_message(
-            input_type="user_message",
             message_text=text,
             chat_id=chat_id,
+            message_id=message_id,
             from_user=from_user,
         )
-
-
-class Settings:
-    """Worker settings loaded from environment."""
-
-    def __init__(self):
-        self.aws_region = os.environ.get("AWS_REGION", "us-east-1")
-        self.sqs_incoming_url = os.environ.get("SQS_INCOMING_URL", "")
-        self.minute_tick_enabled = os.environ.get(
-            "MINUTE_TICK_ENABLED", "false"
-        ).lower() == "true"
-        self.timezone = os.environ.get("TIMEZONE", "UTC")
 
 
 def main() -> None:

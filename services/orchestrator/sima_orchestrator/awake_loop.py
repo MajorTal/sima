@@ -16,12 +16,17 @@ to skip external message generation for routine ticks.
 
 import asyncio
 import logging
-import uuid
 from dataclasses import dataclass, field
 from typing import Any
+from uuid import UUID
+
+from sima_core.ids import generate_id
+from sima_core.types import Actor, EventType, InputType, Stream
 
 from .module_runner import ModuleRunner, ModuleResult
+from .persistence import TracePersistence, create_trace, persist_trace
 from .settings import Settings
+from .telegram import TelegramClient
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +35,12 @@ logger = logging.getLogger(__name__)
 class TraceContext:
     """Context for a single cognitive trace."""
 
-    trace_id: str
-    input_type: str
+    trace_id: UUID
+    input_type: InputType
     message_text: str | None = None
     tick_metadata: dict[str, Any] | None = None
     chat_id: int | None = None
+    message_id: int | None = None
     from_user: dict[str, Any] | None = None
 
     # Results from modules
@@ -49,6 +55,9 @@ class TraceContext:
     # Control flags
     suppress_output: bool = False
 
+    # Persistence
+    persistence: TracePersistence | None = None
+
 
 class AwakeLoop:
     """
@@ -62,6 +71,7 @@ class AwakeLoop:
         self,
         settings: Settings | None = None,
         module_runner: ModuleRunner | None = None,
+        telegram_client: TelegramClient | None = None,
     ):
         """
         Initialize the awake loop.
@@ -69,9 +79,11 @@ class AwakeLoop:
         Args:
             settings: Configuration settings.
             module_runner: Module runner for executing cognitive modules.
+            telegram_client: Telegram client for sending messages.
         """
         self.settings = settings or Settings()
         self.module_runner = module_runner
+        self.telegram_client = telegram_client
 
         # Cognitive parameters
         self.recurrence_steps = self.settings.recurrence_steps
@@ -84,18 +96,18 @@ class AwakeLoop:
 
     def run_message(
         self,
-        input_type: str,
         message_text: str,
         chat_id: int | None = None,
+        message_id: int | None = None,
         from_user: dict | None = None,
     ) -> TraceContext:
         """
         Run the awake loop for a user message.
 
         Args:
-            input_type: Type of input ("user_message").
             message_text: The user's message text.
             chat_id: Telegram chat ID.
+            message_id: Telegram message ID.
             from_user: User info from Telegram.
 
         Returns:
@@ -103,23 +115,24 @@ class AwakeLoop:
         """
         return asyncio.run(
             self._run_async(
-                input_type=input_type,
+                input_type=InputType.USER_MESSAGE,
                 message_text=message_text,
                 chat_id=chat_id,
+                message_id=message_id,
                 from_user=from_user,
             )
         )
 
     def run_tick(
         self,
-        input_type: str,
+        input_type: InputType,
         tick_metadata: dict[str, Any],
     ) -> TraceContext:
         """
         Run the awake loop for a tick event.
 
         Args:
-            input_type: Type of input ("minute_tick" or "autonomous_tick").
+            input_type: Type of input (MINUTE_TICK or AUTONOMOUS_TICK).
             tick_metadata: Tick information (timestamp, hour, minute, etc.).
 
         Returns:
@@ -134,16 +147,17 @@ class AwakeLoop:
 
     async def _run_async(
         self,
-        input_type: str,
+        input_type: InputType,
         message_text: str | None = None,
         tick_metadata: dict[str, Any] | None = None,
         chat_id: int | None = None,
+        message_id: int | None = None,
         from_user: dict | None = None,
     ) -> TraceContext:
         """
         Async implementation of the awake loop.
         """
-        trace_id = str(uuid.uuid4())
+        trace_id = generate_id()
 
         ctx = TraceContext(
             trace_id=trace_id,
@@ -151,12 +165,30 @@ class AwakeLoop:
             message_text=message_text,
             tick_metadata=tick_metadata,
             chat_id=chat_id,
+            message_id=message_id,
             from_user=from_user,
+            persistence=TracePersistence(trace_id),
         )
 
-        logger.info(f"Starting awake loop, trace_id={trace_id}, input_type={input_type}")
+        logger.info(f"Starting awake loop, trace_id={trace_id}, input_type={input_type.value}")
 
         try:
+            # Create trace in database
+            await create_trace(
+                trace_id=trace_id,
+                input_type=input_type,
+                telegram_chat_id=chat_id,
+                telegram_message_id=message_id,
+                user_message=message_text,
+            )
+
+            # Record input event
+            ctx.persistence.add_input_event(
+                input_type=input_type,
+                content_text=message_text,
+                content_json=tick_metadata,
+            )
+
             # Step 1: Perception
             await self._run_perception(ctx)
 
@@ -169,9 +201,9 @@ class AwakeLoop:
                 )
 
             # For suppressed ticks, we can optionally run reduced processing
-            if ctx.suppress_output and input_type == "minute_tick":
-                # Log the event but skip full cognitive loop
-                await self._persist_event(ctx, "perception", ctx.percept)
+            if ctx.suppress_output and input_type == InputType.MINUTE_TICK:
+                # Persist what we have and return early
+                await persist_trace(ctx.persistence)
                 logger.info(f"Tick suppressed, skipping full cognitive loop for trace {trace_id}")
                 return ctx
 
@@ -191,20 +223,31 @@ class AwakeLoop:
             await self._run_attention_schema(ctx)
 
             # Step 7: Speaker (if not suppressed)
+            response_message: str | None = None
             if not ctx.suppress_output:
                 await self._run_speaker(ctx)
 
                 # Step 8: Send external message
                 if ctx.speaker_output:
+                    response_message = ctx.speaker_output.get("message")
                     await self._send_telegram_message(ctx)
 
             # Persist final state
-            await self._persist_trace(ctx)
+            await persist_trace(ctx.persistence, response_message)
 
             logger.info(f"Awake loop complete, trace_id={trace_id}")
 
         except Exception as e:
             logger.exception(f"Error in awake loop: {e}")
+            # Record error event
+            if ctx.persistence:
+                ctx.persistence.add_event(
+                    actor=Actor.SYSTEM,
+                    stream=Stream.SUBCONSCIOUS,
+                    event_type=EventType.ERROR,
+                    content_text=str(e),
+                )
+                await persist_trace(ctx.persistence)
             raise
 
         return ctx
@@ -216,9 +259,9 @@ class AwakeLoop:
             return
 
         variables = {
-            "trace_id": ctx.trace_id,
+            "trace_id": str(ctx.trace_id),
             "recurrence_steps": self.recurrence_steps,
-            "input_type": ctx.input_type,
+            "input_type": ctx.input_type.value,
             "recent_external_messages": self.recent_messages[-5:],
             "recent_workspace_summaries": [
                 w.get("workspace_summary", "") for w in self.recent_workspaces[-3:]
@@ -227,7 +270,7 @@ class AwakeLoop:
         }
 
         # Add input-specific variables
-        if ctx.input_type == "user_message":
+        if ctx.input_type == InputType.USER_MESSAGE:
             variables["incoming_message_text"] = ctx.message_text or ""
         elif ctx.tick_metadata:
             variables.update(ctx.tick_metadata)
@@ -240,16 +283,29 @@ class AwakeLoop:
             logger.error(f"Perception validation failed: {result.validation_errors}")
             ctx.percept = result.output  # Use anyway for debugging
 
+        # Record perception event
+        if ctx.persistence and ctx.percept:
+            ctx.persistence.add_module_event(
+                actor=Actor.PERCEPTION,
+                event_type=EventType.PERCEPT,
+                output=ctx.percept,
+            )
+
     async def _run_candidate_modules(self, ctx: TraceContext) -> None:
         """Run parallel candidate generation modules."""
         if self.module_runner is None:
             return
 
         modules = ["memory_retrieval", "planner", "critic"]
+        module_actors = {
+            "memory_retrieval": Actor.MEMORY,
+            "planner": Actor.PLANNER,
+            "critic": Actor.CRITIC,
+        }
         tasks = []
 
         base_variables = {
-            "trace_id": ctx.trace_id,
+            "trace_id": str(ctx.trace_id),
             "current_goal": self.current_goal,
             "percept_json": ctx.percept,
             "recent_workspace_summaries": [
@@ -272,13 +328,21 @@ class AwakeLoop:
             elif isinstance(result, ModuleResult) and result.is_valid:
                 ctx.candidates.extend(result.output.get("candidates", []))
 
+                # Record candidate event
+                if ctx.persistence:
+                    ctx.persistence.add_module_event(
+                        actor=module_actors[module],
+                        event_type=EventType.CANDIDATE,
+                        output=result.output,
+                    )
+
     async def _run_attention_gate(self, ctx: TraceContext) -> None:
         """Run the attention gate to select top-K candidates."""
         if self.module_runner is None:
             return
 
         variables = {
-            "trace_id": ctx.trace_id,
+            "trace_id": str(ctx.trace_id),
             "workspace_capacity": self.workspace_capacity,
             "candidates_json": ctx.candidates,
         }
@@ -296,13 +360,21 @@ class AwakeLoop:
             )
             ctx.selected_items = sorted_candidates[: self.workspace_capacity]
 
+        # Record selection event
+        if ctx.persistence:
+            ctx.persistence.add_module_event(
+                actor=Actor.ATTENTION_GATE,
+                event_type=EventType.SELECTION,
+                output={"selected": ctx.selected_items},
+            )
+
     async def _run_workspace_integrator(self, ctx: TraceContext) -> None:
         """Run the workspace integrator."""
         if self.module_runner is None:
             return
 
         variables = {
-            "trace_id": ctx.trace_id,
+            "trace_id": str(ctx.trace_id),
             "current_goal": self.current_goal,
             "percept_json": ctx.percept,
             "selected_items_json": ctx.selected_items,
@@ -319,13 +391,21 @@ class AwakeLoop:
             if len(self.recent_workspaces) > 10:
                 self.recent_workspaces = self.recent_workspaces[-10:]
 
+            # Record workspace event
+            if ctx.persistence:
+                ctx.persistence.add_module_event(
+                    actor=Actor.WORKSPACE,
+                    event_type=EventType.WORKSPACE_UPDATE,
+                    output=ctx.workspace,
+                )
+
     async def _run_metacognition(self, ctx: TraceContext) -> None:
         """Run the metacognition module."""
         if self.module_runner is None:
             return
 
         variables = {
-            "trace_id": ctx.trace_id,
+            "trace_id": str(ctx.trace_id),
             "percept_json": ctx.percept,
             "workspace_json": ctx.workspace,
             "recent_metacog_reports": [],
@@ -336,13 +416,21 @@ class AwakeLoop:
         if result.is_valid:
             ctx.metacog = result.output
 
+            # Record metacognition event
+            if ctx.persistence:
+                ctx.persistence.add_module_event(
+                    actor=Actor.METACOG,
+                    event_type=EventType.METACOG_REPORT,
+                    output=ctx.metacog,
+                )
+
     async def _run_attention_schema(self, ctx: TraceContext) -> None:
         """Run the attention schema module."""
         if self.module_runner is None:
             return
 
         variables = {
-            "trace_id": ctx.trace_id,
+            "trace_id": str(ctx.trace_id),
             "percept_json": ctx.percept,
             "selected_items_json": ctx.selected_items,
             "workspace_json": ctx.workspace,
@@ -354,13 +442,21 @@ class AwakeLoop:
         if result.is_valid:
             ctx.attention_schema = result.output
 
+            # Record attention schema event
+            if ctx.persistence:
+                ctx.persistence.add_module_event(
+                    actor=Actor.AST,
+                    event_type=EventType.ATTENTION_PREDICTION,
+                    output=ctx.attention_schema,
+                )
+
     async def _run_speaker(self, ctx: TraceContext) -> None:
         """Run the speaker module."""
         if self.module_runner is None:
             return
 
         variables = {
-            "trace_id": ctx.trace_id,
+            "trace_id": str(ctx.trace_id),
             "workspace_json": ctx.workspace,
             "external_draft": ctx.workspace.get("external_draft", "") if ctx.workspace else "",
         }
@@ -379,42 +475,46 @@ class AwakeLoop:
         if not message:
             return
 
-        logger.info(f"Would send Telegram message: {message[:100]}...")
-
         # Store in recent messages
         self.recent_messages.append({
             "role": "assistant",
             "content": message,
-            "trace_id": ctx.trace_id,
+            "trace_id": str(ctx.trace_id),
         })
         if len(self.recent_messages) > 20:
             self.recent_messages = self.recent_messages[-20:]
 
-    async def _persist_event(
-        self,
-        ctx: TraceContext,
-        event_type: str,
-        content: dict | None,
-    ) -> None:
-        """Persist a single event to the database."""
-        logger.debug(f"Persisting event: {event_type} for trace {ctx.trace_id}")
-        # Would persist to database here
+        # Send via Telegram client
+        if self.telegram_client:
+            # Send to external channel (telemetry)
+            await self.telegram_client.send_event(
+                stream=Stream.EXTERNAL,
+                event_type="message_out",
+                actor="speaker",
+                content=ctx.speaker_output,
+                trace_id=str(ctx.trace_id),
+            )
 
-    async def _persist_trace(self, ctx: TraceContext) -> None:
-        """Persist the complete trace."""
-        logger.debug(f"Persisting trace: {ctx.trace_id}")
-        # Would persist all events to database here
+            # Reply directly to user if we have their chat ID
+            if ctx.chat_id:
+                await self.telegram_client.reply_to_user(
+                    chat_id=ctx.chat_id,
+                    text=message,
+                    reply_to_message_id=ctx.message_id,
+                )
+        else:
+            logger.info(f"Would send Telegram message: {message[:100]}...")
 
+        # Record output event
+        if ctx.persistence:
+            ctx.persistence.add_output_event(message)
 
-class Settings:
-    """Awake loop settings."""
-
-    def __init__(self):
-        import os
-
-        self.recurrence_steps = int(os.environ.get("RECURRENCE_STEPS", "3"))
-        self.workspace_capacity = int(os.environ.get("WORKSPACE_CAPACITY_K", "7"))
-        self.minute_tick_enabled = (
-            os.environ.get("MINUTE_TICK_ENABLED", "false").lower() == "true"
-        )
-        self.timezone = os.environ.get("TIMEZONE", "UTC")
+        # Send workspace to conscious stream
+        if self.telegram_client and ctx.workspace:
+            await self.telegram_client.send_event(
+                stream=Stream.CONSCIOUS,
+                event_type="workspace_update",
+                actor="workspace",
+                content=ctx.workspace,
+                trace_id=str(ctx.trace_id),
+            )

@@ -7,7 +7,7 @@ name = "sima-llm"
 version = "0.1.0"
 description = "Multi-provider LLM router with tool calling support for SIMA"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 license = "MIT"
 keywords = ["llm", "ai", "tools", "openai", "google", "bedrock"]
 authors = [

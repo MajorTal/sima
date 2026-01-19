@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: paradedb/paradedb:latest
+    environment:
+      POSTGRES_USER: sima
+      POSTGRES_PASSWORD: sima_dev
+      POSTGRES_DB: sima
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sima -d sima"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  localstack:
+    image: localstack/localstack:latest
+    environment:
+      SERVICES: sqs,s3
+      DEFAULT_REGION: us-east-1
+      AWS_DEFAULT_REGION: us-east-1
+      LOCALSTACK_HOST: localstack
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - ./infra/localstack/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh:ro
+
+volumes:
+  postgres_data:
+  localstack_data:

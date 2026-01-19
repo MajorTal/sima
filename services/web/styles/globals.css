@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-rgb: 17, 24, 39;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+}
+
+/* Stream colors */
+.stream-external {
+  @apply border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-900/20;
+}
+
+.stream-conscious {
+  @apply border-l-4 border-purple-500 bg-purple-50 dark:bg-purple-900/20;
+}
+
+.stream-subconscious {
+  @apply border-l-4 border-gray-400 bg-gray-50 dark:bg-gray-800/50;
+}
+
+.stream-sleep {
+  @apply border-l-4 border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20;
+}
+
+/* Actor badges */
+.actor-badge {
+  @apply px-2 py-0.5 rounded text-xs font-medium;
+}
+
+.actor-perception { @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200; }
+.actor-memory { @apply bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200; }
+.actor-planner { @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200; }
+.actor-critic { @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200; }
+.actor-attention { @apply bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200; }
+.actor-workspace { @apply bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200; }
+.actor-metacog { @apply bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200; }
+.actor-speaker { @apply bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200; }
