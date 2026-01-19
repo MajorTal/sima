@@ -429,16 +429,16 @@ tags            TEXT[]
 
 ## 12.1 Implementation Status
 
-> **Last Updated**: 2026-01-19
+> **Last Updated**: 2026-01-19 (tests added, Docker builds fixed)
 
 ### Milestone Status
 
 | Milestone | Status | Notes |
 |-----------|--------|-------|
-| **M0 — Plumbing** | ✅ 95% | All components tested individually. Full e2e with Telegram pending. |
-| **M1 — Full Modular Awake Loop** | ✅ 100% | All modules complete. Simulated competition gate, belief revision loop, AST predict-compare, inner monologue all implemented. |
+| **M0 — Plumbing** | ✅ 95% | All components tested individually. Docker builds verified. Full e2e with Telegram pending. |
+| **M1 — Full Modular Awake Loop** | ✅ 100% | All modules complete and tested. Simulated competition (27 tests), belief revision (34 tests), AST predict-compare (23 tests). |
 | **M2 — Sleep Consolidation** | ✅ 90% | Core implementation complete. Needs e2e testing + L2 weekly maps. |
-| **M3 — Website** | ⚠️ 70% | Lab + public routes built. 4-panel layout simplified to list view. |
+| **M3 — Website** | ✅ 80% | Lab + public routes built. Routing conflict resolved. 4-panel layout simplified to list view. |
 | **M4 — Time-Sensing** | ✅ 90% | Worker supports ticks. Inner monologue now runs on every tick. |
 
 ### Component Status
@@ -449,11 +449,11 @@ tags            TEXT[]
 | **sima-llm** | `packages/sima-llm/` | ✅ Complete | OpenAI provider working (6 integration tests) |
 | **sima-prompts** | `packages/sima-prompts/` | ✅ Complete | Registry + renderer, 11 YAML prompts (added inner_monologue) |
 | **sima-storage** | `packages/sima-storage/` | ✅ Complete | Models, repository, migrations (7 integration tests) |
-| **orchestrator** | `services/orchestrator/` | ✅ Complete | Awake loop + module runner (4 integration tests) |
-| **ingest-api** | `services/ingest-api/` | ✅ Complete | FastAPI + webhook + SQS |
-| **api** | `services/api/` | ✅ Complete | REST + WebSocket + auth (6 integration tests) |
-| **web** | `services/web/` | ⚠️ 80% | Next.js app, needs 4-panel public view |
-| **sleep** | `services/sleep/` | ✅ 90% | Consolidation job, memory tiering, Telegram posting, genesis.md |
+| **orchestrator** | `services/orchestrator/` | ✅ Complete | Awake loop + module runner (4 integration + 84 unit tests). Docker build working. |
+| **ingest-api** | `services/ingest-api/` | ✅ Complete | FastAPI + webhook + SQS. Docker build working. |
+| **api** | `services/api/` | ✅ Complete | REST + WebSocket + auth (6 integration + 10 WebSocket tests). Docker build working. |
+| **web** | `services/web/` | ✅ 85% | Next.js app, routing fixed. Docker build working. Needs 4-panel public view. |
+| **sleep** | `services/sleep/` | ✅ 90% | Consolidation job, memory tiering, Telegram posting, genesis.md. Docker build working. |
 
 ### Implementation Gaps
 
@@ -524,24 +524,23 @@ tags            TEXT[]
 - [x] Admin pause/resume
 - [x] Web UI (public + lab routes)
 - [x] Dev scripts (dev_up.sh, seed_demo_trace.py)
-- [x] Test framework (29 tests: 6 unit, 23 integration)
+- [x] Test framework (100 tests: 90 unit, 10+ integration)
 - [x] Inner monologue module (runs every tick, posts to CONSCIOUS)
-- [x] Simulated competition gate (mutual inhibition dynamics)
-- [x] HOT belief revision loop (re-runs on low confidence)
-- [x] AST predict-compare (control success rate tracking)
+- [x] Simulated competition gate (mutual inhibition dynamics) — 27 unit tests
+- [x] HOT belief revision loop (re-runs on low confidence) — 34 unit tests
+- [x] AST predict-compare (control success rate tracking) — 23 unit tests
 - [x] Telegram channel posting (all streams wired)
 - [x] Sleep consolidation service (settings, main, consolidation, memory_tier, telegram)
 - [x] Memory tiering (L1 trace digests, L3 genesis + core beliefs)
 - [x] Genesis.md created and loaded as L3 memory
 - [x] Sleep Telegram client (sleep start/digest/end/error notifications)
+- [x] Docker builds for all services (ingest-api, api, web, orchestrator, sleep)
+- [x] WebSocket integration tests (10 tests, skip gracefully when API not running)
 
 ### What Needs Testing
 
 - [ ] End-to-end: Telegram → SQS → orchestrator → DB → API → Web (individual components verified)
-- [ ] WebSocket client receiving events
-- [ ] Docker builds for all services
 - [ ] AWS deployment
-- [ ] New M1 features: simulated competition, belief revision, AST comparison
 - [ ] Sleep consolidation e2e (scheduled job, full LLM call, memory persistence)
 
 ### What's Not Started

@@ -8,16 +8,13 @@ RUN pip install uv
 # Copy workspace files
 COPY pyproject.toml uv.lock ./
 COPY packages/ ./packages/
-COPY services/ingest-api/ ./services/ingest-api/
+COPY services/sleep/ ./services/sleep/
 
 # Install dependencies
 RUN uv sync --frozen
 
 # Set working directory for service
-WORKDIR /app/services/ingest-api
+WORKDIR /app/services/sleep
 
-# Expose port
-EXPOSE 8000
-
-# Run the application
-CMD ["uv", "run", "uvicorn", "sima_ingest.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application (sleep job runs once then exits)
+CMD ["uv", "run", "python", "-m", "sima_sleep.main"]

@@ -15,11 +15,11 @@ config = context.config
 # Override sqlalchemy.url from environment if set
 database_url = os.getenv("DATABASE_URL")
 if database_url:
-    # Use psycopg2 for migrations (sync)
+    # Use psycopg (psycopg3) for migrations (sync)
     if database_url.startswith("postgresql+asyncpg://"):
-        database_url = database_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://", 1)
+        database_url = database_url.replace("postgresql+asyncpg://", "postgresql+psycopg://", 1)
     elif database_url.startswith("postgresql://"):
-        database_url = database_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
     config.set_main_option("sqlalchemy.url", database_url)
 
 if config.config_file_name is not None:

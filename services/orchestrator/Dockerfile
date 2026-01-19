@@ -8,16 +8,13 @@ RUN pip install uv
 # Copy workspace files
 COPY pyproject.toml uv.lock ./
 COPY packages/ ./packages/
-COPY services/ingest-api/ ./services/ingest-api/
+COPY services/orchestrator/ ./services/orchestrator/
 
 # Install dependencies
 RUN uv sync --frozen
 
 # Set working directory for service
-WORKDIR /app/services/ingest-api
-
-# Expose port
-EXPOSE 8000
+WORKDIR /app/services/orchestrator
 
 # Run the application
-CMD ["uv", "run", "uvicorn", "sima_ingest.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "python", "-m", "sima_orchestrator.worker"]

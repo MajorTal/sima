@@ -6,7 +6,7 @@ WORKDIR /app
 RUN pip install uv
 
 # Copy workspace files
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 COPY packages/ ./packages/
 COPY services/api/ ./services/api/
 
