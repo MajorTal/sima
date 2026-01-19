@@ -39,7 +39,12 @@ class TraceModel(Base):
         primary_key=True,
     )
     input_type: Mapped[str] = mapped_column(
-        SQLEnum(InputType, name="input_type_enum", create_type=False),
+        SQLEnum(
+            InputType,
+            name="input_type_enum",
+            create_type=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=False,
     )
     started_at: Mapped[datetime] = mapped_column(
@@ -109,15 +114,30 @@ class EventModel(Base):
         server_default=text("NOW()"),
     )
     actor: Mapped[str] = mapped_column(
-        SQLEnum(Actor, name="actor_enum", create_type=False),
+        SQLEnum(
+            Actor,
+            name="actor_enum",
+            create_type=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=False,
     )
     stream: Mapped[str] = mapped_column(
-        SQLEnum(Stream, name="stream_enum", create_type=False),
+        SQLEnum(
+            Stream,
+            name="stream_enum",
+            create_type=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=False,
     )
     event_type: Mapped[str] = mapped_column(
-        SQLEnum(EventType, name="event_type_enum", create_type=False),
+        SQLEnum(
+            EventType,
+            name="event_type_enum",
+            create_type=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=False,
     )
     content_text: Mapped[str | None] = mapped_column(

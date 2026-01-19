@@ -19,40 +19,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create enums
-    input_type_enum = postgresql.ENUM(
-        "user_message", "minute_tick", "autonomous_tick",
-        name="input_type_enum",
-        create_type=True,
-    )
-    input_type_enum.create(op.get_bind(), checkfirst=True)
-
-    stream_enum = postgresql.ENUM(
-        "external", "conscious", "subconscious", "sleep",
-        name="stream_enum",
-        create_type=True,
-    )
-    stream_enum.create(op.get_bind(), checkfirst=True)
-
-    actor_enum = postgresql.ENUM(
-        "telegram_in", "perception", "memory", "planner", "critic",
-        "attention_gate", "workspace", "metacog", "ast", "speaker",
-        "monologue", "sleep", "telegram_out", "system",
-        name="actor_enum",
-        create_type=True,
-    )
-    actor_enum.create(op.get_bind(), checkfirst=True)
-
-    event_type_enum = postgresql.ENUM(
-        "message_in", "tick", "percept", "candidate", "selection",
-        "workspace_update", "broadcast", "metacog_report", "belief_revision",
-        "attention_prediction", "attention_comparison", "monologue",
-        "message_out", "sleep_start", "sleep_digest", "memory_consolidation",
-        "sleep_end", "error", "pause", "resume",
-        name="event_type_enum",
-        create_type=True,
-    )
-    event_type_enum.create(op.get_bind(), checkfirst=True)
+    # Enable ParadeDB pg_search extension (required for BM25 indexes)
+    op.execute("CREATE EXTENSION IF NOT EXISTS pg_search")
 
     # Create traces table
     op.create_table(
@@ -163,28 +131,22 @@ def upgrade() -> None:
 
     # Create ParadeDB BM25 indexes for full-text search
     op.execute("""
-        CALL paradedb.create_bm25(
-            index_name => 'events_content_bm25',
-            table_name => 'events',
-            key_field => 'event_id',
-            text_fields => paradedb.field('content_text')
-        )
+        CREATE INDEX events_content_bm25 ON events
+        USING bm25 (event_id, content_text)
+        WITH (key_field='event_id')
     """)
 
     op.execute("""
-        CALL paradedb.create_bm25(
-            index_name => 'memories_content_bm25',
-            table_name => 'memories',
-            key_field => 'memory_id',
-            text_fields => paradedb.field('content')
-        )
+        CREATE INDEX memories_content_bm25 ON memories
+        USING bm25 (memory_id, content)
+        WITH (key_field='memory_id')
     """)
 
 
 def downgrade() -> None:
     # Drop BM25 indexes
-    op.execute("CALL paradedb.drop_bm25('events_content_bm25')")
-    op.execute("CALL paradedb.drop_bm25('memories_content_bm25')")
+    op.execute("DROP INDEX IF EXISTS events_content_bm25")
+    op.execute("DROP INDEX IF EXISTS memories_content_bm25")
 
     # Drop tables
     op.drop_table("system_state")

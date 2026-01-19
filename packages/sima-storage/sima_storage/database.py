@@ -6,6 +6,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -69,7 +70,7 @@ async def init_db() -> None:
     engine = get_engine()
     async with engine.begin() as conn:
         # Just verify connection works
-        await conn.execute("SELECT 1")
+        await conn.execute(text("SELECT 1"))
 
 
 async def close_db() -> None:

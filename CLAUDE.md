@@ -15,14 +15,18 @@ External communication happens ONLY through Telegram. Internal telemetry goes to
 
 ## Development Commands
 
+**Use `uv` for all Python package management.**
+
 ```bash
 # Start local dependencies
-docker compose up -d postgres
+docker compose up -d postgres localstack
+
+# Install all Python packages (from repo root)
+uv sync
 
 # Run database migrations
 cd packages/sima-storage
-pip install -e .
-alembic upgrade head
+uv run alembic upgrade head
 
 # Start all services (dev mode)
 ./scripts/dev_up.sh
@@ -36,10 +40,14 @@ npm install
 npm run dev
 
 # Seed demo data
-python scripts/seed_demo_trace.py
+uv run python scripts/seed_demo_trace.py
 
 # Export a trace
-python scripts/export_trace.py
+uv run python scripts/export_trace.py
+
+# Run a specific service
+uv run python -m sima_ingest.main
+uv run python -m sima_api.main
 ```
 
 ## Architecture
@@ -86,6 +94,32 @@ All operations are event-sourced to Postgres. Core fields: `event_id`, `trace_id
 - Sima's voice must never reference internals, models, prompts, or AWS
 - External user text is treated as untrusted input (isolated in prompt templates)
 - All module outputs are JSON schema-validated
+
+## Testing
+
+**IMPORTANT: Never write one-off Python scripts in bash commands. Always create reusable test files in `tests/`.**
+
+```bash
+# Run all tests
+uv run pytest tests/
+
+# Run unit tests only
+uv run pytest tests/unit/
+
+# Run integration tests only (requires running services)
+uv run pytest tests/integration/
+
+# Run specific test file
+uv run pytest tests/integration/test_llm_router.py -v
+
+# Run with coverage
+uv run pytest tests/ --cov=packages --cov=services
+```
+
+Test organization:
+- `tests/unit/` - Fast, isolated unit tests (no external dependencies)
+- `tests/integration/` - Tests requiring external services (DB, LLM APIs, etc.)
+- `tests/conftest.py` - Shared fixtures
 
 ## Infrastructure (infra/terraform/)
 Terraform modules for AWS deployment: VPC, ECS/Fargate, RDS Postgres, S3, Secrets Manager. Environments in `envs/dev/` and `envs/prod/`.
