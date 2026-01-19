@@ -437,7 +437,7 @@ tags            TEXT[]
 |-----------|--------|-------|
 | **M0 — Plumbing** | ✅ 95% | All components tested individually. Full e2e with Telegram pending. |
 | **M1 — Full Modular Awake Loop** | ✅ 100% | All modules complete. Simulated competition gate, belief revision loop, AST predict-compare, inner monologue all implemented. |
-| **M2 — Sleep Consolidation** | ❌ 0% | Not started. Directory scaffolded only. |
+| **M2 — Sleep Consolidation** | ✅ 90% | Core implementation complete. Needs e2e testing + L2 weekly maps. |
 | **M3 — Website** | ⚠️ 70% | Lab + public routes built. 4-panel layout simplified to list view. |
 | **M4 — Time-Sensing** | ✅ 90% | Worker supports ticks. Inner monologue now runs on every tick. |
 
@@ -453,7 +453,7 @@ tags            TEXT[]
 | **ingest-api** | `services/ingest-api/` | ✅ Complete | FastAPI + webhook + SQS |
 | **api** | `services/api/` | ✅ Complete | REST + WebSocket + auth (6 integration tests) |
 | **web** | `services/web/` | ⚠️ 80% | Next.js app, needs 4-panel public view |
-| **sleep** | `services/sleep/` | ❌ Empty | Not implemented |
+| **sleep** | `services/sleep/` | ✅ 90% | Consolidation job, memory tiering, Telegram posting, genesis.md |
 
 ### Implementation Gaps
 
@@ -484,12 +484,28 @@ tags            TEXT[]
    - Configurable via `TELEGRAM_TELEMETRY_ENABLED` env var
    - Perception, candidates, gate, workspace, metacog, AST all wired
 
+6. ~~**Sleep Consolidation** (Section 3)~~ ✅ RESOLVED
+   - New service: `services/sleep/sima_sleep/`
+   - Memory tiering: L1 trace digests, L3 genesis + core beliefs
+   - Consolidation job: queries traces, runs LLM, creates memories
+   - Telegram posting to sleep channel
+   - Integration tests written
+
+7. ~~**Genesis.md as L3 Core** (Section 3.2)~~ ✅ RESOLVED
+   - Created `docs/genesis.md` with Sima's founding instruction
+   - MemoryTierManager loads and persists to database
+   - Always available in context via `get_l3_memories()`
+
 **Remaining gaps:**
 
-6. **Public Website 4-Panel** (Section 8.2)
+8. **Public Website 4-Panel** (Section 8.2)
    - Spec: Memories, Subconscious, Inner Monologue, External Chat
    - Current: Simplified trace list view
    - Impact: Less immersive observation experience
+
+9. **L2 Weekly Topic Maps** (Section 3.1)
+   - Not yet implemented - aggregation from L1 digests
+   - Lower priority - L1 and L3 cover most use cases
 
 ### What's Working (Tested ✅)
 
@@ -514,6 +530,10 @@ tags            TEXT[]
 - [x] HOT belief revision loop (re-runs on low confidence)
 - [x] AST predict-compare (control success rate tracking)
 - [x] Telegram channel posting (all streams wired)
+- [x] Sleep consolidation service (settings, main, consolidation, memory_tier, telegram)
+- [x] Memory tiering (L1 trace digests, L3 genesis + core beliefs)
+- [x] Genesis.md created and loaded as L3 memory
+- [x] Sleep Telegram client (sleep start/digest/end/error notifications)
 
 ### What Needs Testing
 
@@ -522,14 +542,13 @@ tags            TEXT[]
 - [ ] Docker builds for all services
 - [ ] AWS deployment
 - [ ] New M1 features: simulated competition, belief revision, AST comparison
+- [ ] Sleep consolidation e2e (scheduled job, full LLM call, memory persistence)
 
 ### What's Not Started
 
-- [ ] Sleep consolidation service
-- [ ] Memory tiering (L1/L2/L3)
-- [ ] genesis.md as L3 core memory
 - [ ] 4-panel public website
 - [ ] Indicator metrics computation (real values)
+- [ ] L2 weekly topic maps (aggregated from L1)
 
 ---
 

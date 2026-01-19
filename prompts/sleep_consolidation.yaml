@@ -1,6 +1,6 @@
 name: sleep_consolidation
 version: "0.1.0"
-schema_file: "shared/schemas/sleep_digest.schema.json"
+schema_file: "sleep_digest.schema.json"
 messages:
   - role: system
     content: |

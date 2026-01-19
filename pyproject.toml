@@ -17,6 +17,7 @@ members = [
     "services/orchestrator",
     "services/ingest-api",
     "services/api",
+    "services/sleep",
 ]
 
 [tool.uv.sources]
