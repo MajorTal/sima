@@ -9,6 +9,7 @@ RUN pip install uv
 COPY pyproject.toml uv.lock ./
 COPY packages/ ./packages/
 COPY services/orchestrator/ ./services/orchestrator/
+COPY prompts/ ./prompts/
 
 # Install dependencies
 RUN uv sync --frozen
