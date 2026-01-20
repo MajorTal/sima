@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { clsx } from 'clsx';
 import type { Event, Stream } from '@/lib/types';
 import { wsClient } from '@/lib/websocket';
+import { api } from '@/lib/api';
 import EventCard from './EventCard';
 
 interface StreamPanelProps {
@@ -21,6 +22,29 @@ export default function StreamPanel({
 }: StreamPanelProps) {
   const [events, setEvents] = useState<Event[]>([]);
   const [connected, setConnected] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const historicalEventIds = useRef<Set<string>>(new Set());
+
+  // Fetch historical events on mount
+  useEffect(() => {
+    async function fetchHistorical() {
+      try {
+        const response = await api.listEvents({ stream, limit: maxEvents });
+        // Sort by timestamp descending (newest first)
+        const sorted = response.events.sort(
+          (a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()
+        );
+        // Track IDs to avoid duplicates from WebSocket
+        sorted.forEach((e) => historicalEventIds.current.add(e.event_id));
+        setEvents(sorted);
+      } catch (err) {
+        console.error(`Failed to load historical events for ${stream}:`, err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchHistorical();
+  }, [stream, maxEvents]);
 
   useEffect(() => {
     // Connect to WebSocket
@@ -30,6 +54,10 @@ export default function StreamPanel({
     const unsubEvent = wsClient.onEvent((event) => {
       if (event.stream === stream || stream === 'all' as unknown as Stream) {
         setEvents((prev) => {
+          // Skip if we already have this event from historical load
+          if (historicalEventIds.current.has(event.event_id)) {
+            return prev;
+          }
           const updated = [event, ...prev];
           return updated.slice(0, maxEvents);
         });
@@ -78,7 +106,11 @@ export default function StreamPanel({
 
       {/* Events */}
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
-        {events.length === 0 ? (
+        {loading ? (
+          <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+            <p className="text-sm">Loading...</p>
+          </div>
+        ) : events.length === 0 ? (
           <div className="text-center text-gray-500 dark:text-gray-400 py-8">
             <p className="text-sm">No events yet</p>
             <p className="text-xs mt-1">
