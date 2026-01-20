@@ -1747,7 +1747,7 @@ dependencies = [
     { name = "httpx" },
     { name = "pydantic-settings" },
     { name = "sima-core" },
-    { name = "sima-llm" },
+    { name = "sima-llm", extra = ["openai"] },
     { name = "sima-prompts" },
     { name = "sima-storage" },
 ]
@@ -1766,7 +1766,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
     { name = "sima-core", editable = "packages/sima-core" },
-    { name = "sima-llm", editable = "packages/sima-llm" },
+    { name = "sima-llm", extras = ["openai"], editable = "packages/sima-llm" },
     { name = "sima-prompts", editable = "packages/sima-prompts" },
     { name = "sima-storage", editable = "packages/sima-storage" },
 ]
