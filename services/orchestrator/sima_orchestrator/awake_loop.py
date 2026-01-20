@@ -26,7 +26,7 @@ from sima_core.types import Actor, EventType, InputType, Stream
 from sima_storage.database import close_db
 
 from .module_runner import ModuleRunner, ModuleResult
-from .persistence import TracePersistence, create_trace, persist_trace, get_prior_attention_prediction
+from .persistence import TracePersistence, create_trace, persist_trace, get_prior_attention_prediction, get_recent_monologues
 from .settings import Settings
 from .simulated_competition import run_competition
 from .telegram import TelegramClient
@@ -890,6 +890,18 @@ class AwakeLoop:
         if ctx.speaker_output:
             external_message = ctx.speaker_output.get("message", "")
 
+        # Get previous inner monologue thoughts for continuity
+        previous_thoughts = await get_recent_monologues(limit=3)
+        # Extract just the inner_monologue text from each, reverse to chronological order
+        previous_thoughts_text = []
+        for thought in reversed(previous_thoughts):
+            monologue_text = thought.get("inner_monologue", "")
+            if not monologue_text:
+                # Fallback to observations field if inner_monologue not present
+                monologue_text = thought.get("observations", "")
+            if monologue_text:
+                previous_thoughts_text.append(monologue_text)
+
         variables = {
             "trace_id": str(ctx.trace_id),
             "current_goal": self.current_goal,
@@ -898,6 +910,7 @@ class AwakeLoop:
             "metacog_json": ctx.metacog,
             "attention_schema_json": ctx.attention_schema,
             "external_message": external_message,
+            "previous_thoughts": previous_thoughts_text,
         }
 
         result = await self.module_runner.run("inner_monologue", variables)

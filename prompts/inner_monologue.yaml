@@ -36,6 +36,12 @@ messages:
       trace_id: {{trace_id}}
       current_goal: {{current_goal}}
 
+      Your recent thoughts (oldest to newest):
+      {% for thought in previous_thoughts %}
+      - {{thought}}
+      {% endfor %}
+      {% if not previous_thoughts %}(No previous thoughts yet){% endif %}
+
       Percept summary:
       {{percept_summary}}
 
@@ -53,5 +59,6 @@ messages:
 
       Task:
       - Generate the inner monologue for this moment.
+      - Build on your previous thoughts if relevant - you have continuity of experience.
       - Include key observations that stand out.
       - Rate your current subjective clarity [0,1].

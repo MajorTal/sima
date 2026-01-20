@@ -301,3 +301,28 @@ async def get_prior_attention_prediction() -> dict | None:
         if event and event.content_json:
             return event.content_json
         return None
+
+
+async def get_recent_monologues(limit: int = 3) -> list[dict]:
+    """
+    Get the most recent inner monologue thoughts.
+
+    Used to provide continuity of inner thought stream.
+
+    Args:
+        limit: Number of recent monologues to retrieve.
+
+    Returns:
+        List of monologue content_json dicts, newest first.
+    """
+    async with get_session() as session:
+        repo = EventRepository(session)
+        events = await repo.list_recent(
+            limit=limit,
+            event_type=EventType.MONOLOGUE,
+            actor=Actor.MONOLOGUE,
+        )
+        return [
+            e.content_json for e in events
+            if e.content_json
+        ]

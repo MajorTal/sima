@@ -188,12 +188,18 @@ class EventRepository:
         limit: int = 100,
         offset: int = 0,
         stream: Stream | None = None,
+        actor: Actor | None = None,
+        event_type: EventType | None = None,
     ) -> Sequence[EventModel]:
-        """List recent events."""
+        """List recent events with optional filters."""
         query = select(EventModel).order_by(EventModel.ts.desc())
 
         if stream is not None:
             query = query.where(EventModel.stream == stream)
+        if actor is not None:
+            query = query.where(EventModel.actor == actor)
+        if event_type is not None:
+            query = query.where(EventModel.event_type == event_type)
 
         query = query.limit(limit).offset(offset)
         result = await self.session.execute(query)
