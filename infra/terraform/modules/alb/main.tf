@@ -163,7 +163,7 @@ resource "aws_lb_listener_rule" "api" {
 
   condition {
     path_pattern {
-      values = ["/traces/*", "/events/*", "/memories/*", "/metrics/*", "/admin/*"]
+      values = ["/traces", "/traces/*", "/events", "/events/*", "/memories"]
     }
   }
 }
@@ -171,6 +171,22 @@ resource "aws_lb_listener_rule" "api" {
 resource "aws_lb_listener_rule" "api2" {
   listener_arn = var.certificate_arn != "" ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
   priority     = 101
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/memories/*", "/metrics", "/metrics/*", "/admin", "/admin/*"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "api3" {
+  listener_arn = var.certificate_arn != "" ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
+  priority     = 102
 
   action {
     type             = "forward"
