@@ -254,6 +254,14 @@ resource "aws_ecs_task_definition" "api" {
         {
           name      = "LAB_PASSWORD"
           valueFrom = "${var.app_secret_arn}:lab_password::"
+        },
+        {
+          name      = "ADMIN_USERNAME"
+          valueFrom = "${var.app_secret_arn}:admin_username::"
+        },
+        {
+          name      = "ADMIN_PASSWORD"
+          valueFrom = "${var.app_secret_arn}:admin_password::"
         }
       ]
       logConfiguration = {

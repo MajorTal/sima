@@ -179,7 +179,8 @@ resource "aws_lb_listener_rule" "api2" {
 
   condition {
     path_pattern {
-      values = ["/memories/*", "/metrics", "/metrics/*", "/admin", "/admin/*"]
+      # Note: /admin page is served by frontend, only /admin/* API calls go to backend
+      values = ["/memories/*", "/metrics", "/metrics/*", "/admin/*"]
     }
   }
 }

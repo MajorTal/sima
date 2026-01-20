@@ -9,7 +9,29 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Admin authentication state
+  const [adminAuthenticated, setAdminAuthenticated] = useState(false);
+  const [adminUsername, setAdminUsername] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminError, setAdminError] = useState('');
+  const [adminLoading, setAdminLoading] = useState(false);
+
+  // Reset confirmation state
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetResult, setResetResult] = useState<{
+    events_deleted: number;
+    traces_deleted: number;
+    memories_deleted: number;
+  } | null>(null);
+
   useEffect(() => {
+    // Check if admin is already authenticated
+    const adminToken = api.getAdminToken();
+    if (adminToken) {
+      setAdminAuthenticated(true);
+    }
+
     const loadStatus = async () => {
       try {
         const data = await api.getSystemStatus();
@@ -22,6 +44,28 @@ export default function AdminPage() {
     };
     loadStatus();
   }, []);
+
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminError('');
+    setAdminLoading(true);
+    try {
+      await api.adminLogin(adminUsername, adminPassword);
+      setAdminAuthenticated(true);
+      setAdminUsername('');
+      setAdminPassword('');
+    } catch (err) {
+      setAdminError(err instanceof Error ? err.message : 'Login failed');
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleAdminLogout = () => {
+    api.clearAdminToken();
+    setAdminAuthenticated(false);
+    setResetResult(null);
+  };
 
   const handlePauseToggle = async () => {
     if (!status) return;
@@ -46,6 +90,24 @@ export default function AdminPage() {
       alert('Failed to trigger tick');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleReset = async () => {
+    setResetLoading(true);
+    try {
+      const result = await api.resetSystem();
+      setResetResult(result);
+      setShowResetConfirm(false);
+    } catch (error) {
+      console.error('Failed to reset system:', error);
+      if (error instanceof Error && error.message.includes('Admin access required')) {
+        setAdminAuthenticated(false);
+        api.clearAdminToken();
+      }
+      alert(error instanceof Error ? error.message : 'Reset failed');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -101,7 +163,7 @@ export default function AdminPage() {
       </div>
 
       {/* Manual Triggers */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4">Manual Triggers</h2>
         <p className="text-sm text-gray-500 mb-4">
           Manually trigger cognitive events for testing purposes.
@@ -126,6 +188,116 @@ export default function AdminPage() {
           <p className="text-sm text-yellow-600 mt-2">
             System is paused. Resume to trigger ticks.
           </p>
+        )}
+      </div>
+
+      {/* System Reset - Admin Only */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border-2 border-red-200 dark:border-red-900">
+        <h2 className="text-lg font-semibold mb-4 text-red-600 dark:text-red-400">
+          System Reset
+        </h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Completely reset the system by deleting all events, traces, and memories.
+          This action requires admin authentication and cannot be undone.
+        </p>
+
+        {!adminAuthenticated ? (
+          <form onSubmit={handleAdminLogin} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={adminUsername}
+                  onChange={(e) => setAdminUsername(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                  placeholder="Admin username"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                  placeholder="Admin password"
+                />
+              </div>
+            </div>
+            {adminError && <p className="text-red-500 text-sm">{adminError}</p>}
+            <button
+              type="submit"
+              disabled={adminLoading}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition disabled:opacity-50"
+            >
+              {adminLoading ? 'Authenticating...' : 'Authenticate as Admin'}
+            </button>
+          </form>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-green-600 dark:text-green-400 text-sm font-medium">
+                Authenticated as admin
+              </span>
+              <button
+                onClick={handleAdminLogout}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
+                Logout
+              </button>
+            </div>
+
+            {resetResult && (
+              <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+                <p className="font-medium text-red-800 dark:text-red-200">Reset Complete</p>
+                <ul className="text-sm text-red-700 dark:text-red-300 mt-2">
+                  <li>Events deleted: {resetResult.events_deleted}</li>
+                  <li>Traces deleted: {resetResult.traces_deleted}</li>
+                  <li>Memories deleted: {resetResult.memories_deleted}</li>
+                </ul>
+              </div>
+            )}
+
+            {!showResetConfirm ? (
+              <button
+                onClick={() => setShowResetConfirm(true)}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+              >
+                Reset System
+              </button>
+            ) : (
+              <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+                <p className="font-bold text-red-800 dark:text-red-200 mb-4">
+                  Are you sure?
+                </p>
+                <p className="text-sm text-red-700 dark:text-red-300 mb-4">
+                  This will permanently delete all events, traces, and memories.
+                  This action cannot be undone.
+                </p>
+                <div className="flex gap-4">
+                  <button
+                    onClick={handleReset}
+                    disabled={resetLoading}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
+                  >
+                    {resetLoading ? 'Resetting...' : 'Yes, Reset Everything'}
+                  </button>
+                  <button
+                    onClick={() => setShowResetConfirm(false)}
+                    disabled={resetLoading}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

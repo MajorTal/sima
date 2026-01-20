@@ -23,6 +23,12 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class AdminLoginRequest(BaseModel):
+    """Admin login request body."""
+    username: str
+    password: str
+
+
 class TokenResponse(BaseModel):
     """Token response."""
     access_token: str
@@ -30,16 +36,21 @@ class TokenResponse(BaseModel):
     expires_at: datetime
 
 
-def create_access_token() -> tuple[str, datetime]:
+def create_access_token(subject: str = "lab_user", role: str = "lab") -> tuple[str, datetime]:
     """
     Create a JWT access token.
+
+    Args:
+        subject: The token subject (user identifier).
+        role: The user role (lab or admin).
 
     Returns:
         Tuple of (token, expiry_datetime).
     """
     expires = datetime.now(timezone.utc) + timedelta(hours=settings.jwt_expiry_hours)
     payload = {
-        "sub": "lab_user",
+        "sub": subject,
+        "role": role,
         "exp": expires,
         "iat": datetime.now(timezone.utc),
     }
@@ -47,7 +58,7 @@ def create_access_token() -> tuple[str, datetime]:
     return token, expires
 
 
-def verify_token(token: str) -> bool:
+def verify_token(token: str) -> dict:
     """
     Verify a JWT token.
 
@@ -55,18 +66,18 @@ def verify_token(token: str) -> bool:
         token: The JWT token to verify.
 
     Returns:
-        True if valid.
+        Decoded token payload.
 
     Raises:
         HTTPException if invalid.
     """
     try:
-        jwt.decode(
+        payload = jwt.decode(
             token,
             settings.jwt_secret,
             algorithms=[settings.jwt_algorithm],
         )
-        return True
+        return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -147,4 +158,54 @@ def login(password: str) -> TokenResponse:
         )
 
     token, expires = create_access_token()
+    return TokenResponse(access_token=token, expires_at=expires)
+
+
+async def require_admin_auth(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
+) -> bool:
+    """
+    Dependency that requires admin authentication.
+
+    Admin must have the 'admin' role in their JWT.
+    """
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    payload = verify_token(credentials.credentials)
+
+    if payload.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+
+    return True
+
+
+def admin_login(username: str, password: str) -> TokenResponse:
+    """
+    Authenticate admin with username and password.
+
+    Args:
+        username: The admin username.
+        password: The admin password.
+
+    Returns:
+        TokenResponse with access token.
+
+    Raises:
+        HTTPException if credentials are incorrect.
+    """
+    if username != settings.admin_username or password != settings.admin_password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+        )
+
+    token, expires = create_access_token(subject=username, role="admin")
     return TokenResponse(access_token=token, expires_at=expires)

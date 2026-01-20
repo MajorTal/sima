@@ -94,3 +94,17 @@ variable "lab_password" {
   sensitive   = true
   default     = ""
 }
+
+variable "admin_username" {
+  description = "Admin username for system reset"
+  type        = string
+  sensitive   = true
+  default     = "tal"
+}
+
+variable "admin_password" {
+  description = "Admin password for system reset"
+  type        = string
+  sensitive   = true
+  default     = "cTw1971r"
+}

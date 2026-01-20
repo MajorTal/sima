@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expiry_hours: int = 24
 
+    # Admin auth (for system reset)
+    admin_username: str = "tal"
+    admin_password: str = "cTw1971r"
+
     # CORS
     cors_origins: str = "*"
 

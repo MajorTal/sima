@@ -88,8 +88,10 @@ module "secrets" {
   anthropic_api_key = var.anthropic_api_key
 
   # Application
-  jwt_secret   = random_password.jwt_secret.result
-  lab_password = var.lab_password
+  jwt_secret     = random_password.jwt_secret.result
+  lab_password   = var.lab_password
+  admin_username = var.admin_username
+  admin_password = var.admin_password
 
   depends_on = [module.rds]
 }
