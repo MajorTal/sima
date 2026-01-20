@@ -9,6 +9,8 @@ RUN pip install uv
 COPY pyproject.toml uv.lock ./
 COPY packages/ ./packages/
 COPY services/sleep/ ./services/sleep/
+COPY docs/ ./docs/
+COPY prompts/ ./prompts/
 
 # Install dependencies
 RUN uv sync --frozen

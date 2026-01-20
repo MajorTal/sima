@@ -67,7 +67,7 @@ async def run_sleep_cycle(
     )
 
     # Initialize database
-    await init_db(settings.database_url)
+    await init_db()
 
     try:
         async with get_session() as session:

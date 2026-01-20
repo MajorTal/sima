@@ -321,13 +321,29 @@ class MemoryRepository:
         memory_type: str,
         limit: int = 50,
     ) -> Sequence[MemoryModel]:
-        """List memories by type."""
-        query = (
-            select(MemoryModel)
-            .where(MemoryModel.memory_type == memory_type)
-            .order_by(MemoryModel.relevance_score.desc())
-            .limit(limit)
-        )
+        """List memories by type.
+
+        Supports both exact types (e.g., 'l1_trace_digest') and
+        level prefixes (e.g., 'L1', 'L2', 'L3') for convenience.
+        """
+        # Map level shorthand to prefix pattern
+        type_lower = memory_type.lower()
+        if type_lower in ("l1", "l2", "l3"):
+            # Use prefix matching for level shortcuts
+            query = (
+                select(MemoryModel)
+                .where(MemoryModel.memory_type.ilike(f"{type_lower}%"))
+                .order_by(MemoryModel.relevance_score.desc())
+                .limit(limit)
+            )
+        else:
+            # Exact match for specific types
+            query = (
+                select(MemoryModel)
+                .where(MemoryModel.memory_type == memory_type)
+                .order_by(MemoryModel.relevance_score.desc())
+                .limit(limit)
+            )
         result = await self.session.execute(query)
         return result.scalars().all()
 
