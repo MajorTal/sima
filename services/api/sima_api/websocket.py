@@ -80,6 +80,7 @@ async def websocket_events(
 
     Connect to receive real-time events as they are persisted.
     Filter by stream: all, external, conscious, subconscious, memories.
+    Polls database every 5 seconds for new events.
     """
     await manager.connect(websocket, stream)
 
@@ -90,21 +91,62 @@ async def websocket_events(
             "stream": stream,
         })
 
-        # Keep connection alive and poll for new events
-        last_event_id = None
+        # Track last seen event timestamp for polling
+        from datetime import datetime, timezone
+        last_poll_time = datetime.now(timezone.utc)
 
         while True:
             try:
-                # Check for client messages (e.g., ping)
+                # Check for client messages (e.g., ping) with short timeout
                 data = await asyncio.wait_for(
                     websocket.receive_text(),
-                    timeout=30.0,
+                    timeout=5.0,  # Poll every 5 seconds
                 )
 
                 if data == "ping":
                     await websocket.send_json({"type": "pong"})
 
             except asyncio.TimeoutError:
+                # Poll for new events
+                try:
+                    async with get_session() as session:
+                        repo = EventRepository(session)
+                        # Get stream filter
+                        stream_filter = None
+                        if stream != "all":
+                            try:
+                                stream_filter = Stream(stream)
+                            except ValueError:
+                                pass
+
+                        # Get recent events
+                        events = await repo.list_recent(
+                            limit=10,
+                            stream=stream_filter,
+                        )
+
+                        # Send events newer than last poll
+                        for event in reversed(events):  # oldest first
+                            if event.ts > last_poll_time:
+                                await websocket.send_json({
+                                    "type": "event",
+                                    "data": {
+                                        "event_id": str(event.event_id),
+                                        "trace_id": str(event.trace_id),
+                                        "ts": event.ts.isoformat(),
+                                        "actor": event.actor,
+                                        "stream": event.stream,
+                                        "event_type": event.event_type,
+                                        "content_text": event.content_text,
+                                        "content_json": event.content_json,
+                                    },
+                                })
+
+                        last_poll_time = datetime.now(timezone.utc)
+
+                except Exception as e:
+                    logger.warning(f"Failed to poll events: {e}")
+
                 # Send heartbeat
                 await websocket.send_json({"type": "heartbeat"})
 
