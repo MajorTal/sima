@@ -236,3 +236,22 @@ variable "sleep_schedule" {
   type        = string
   default     = "cron(0 4 * * ? *)"  # 4 AM UTC daily
 }
+
+# Orchestrator tick settings
+variable "minute_tick_enabled" {
+  description = "Enable minute tick events in orchestrator"
+  type        = bool
+  default     = true
+}
+
+variable "autonomous_tick_enabled" {
+  description = "Enable autonomous tick events in orchestrator"
+  type        = bool
+  default     = true
+}
+
+variable "orchestrator_timezone" {
+  description = "Timezone for orchestrator"
+  type        = string
+  default     = "UTC"
+}

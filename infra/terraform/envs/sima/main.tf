@@ -229,6 +229,11 @@ module "ecs" {
   orchestrator_memory        = 1024
   orchestrator_desired_count = 1
 
+  # Orchestrator tick settings
+  minute_tick_enabled     = true
+  autonomous_tick_enabled = true
+  orchestrator_timezone   = "Asia/Jerusalem"
+
   sleep_cpu             = 512
   sleep_memory          = 1024
   enable_sleep_schedule = true

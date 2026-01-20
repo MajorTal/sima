@@ -418,7 +418,10 @@ resource "aws_ecs_task_definition" "orchestrator" {
       image = "${var.ecr_repository_urls["orchestrator"]}:${var.image_tag}"
       environment = [
         { name = "SQS_QUEUE_URL", value = var.sqs_queue_url },
-        { name = "S3_BUCKET", value = var.s3_bucket_name }
+        { name = "S3_BUCKET", value = var.s3_bucket_name },
+        { name = "MINUTE_TICK_ENABLED", value = tostring(var.minute_tick_enabled) },
+        { name = "AUTONOMOUS_TICK_ENABLED", value = tostring(var.autonomous_tick_enabled) },
+        { name = "TIMEZONE", value = var.orchestrator_timezone }
       ]
       secrets = [
         {
