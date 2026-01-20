@@ -560,6 +560,85 @@ tags            TEXT[]
 
 ---
 
+## TODO: Memory System Fixes (2026-01-20)
+
+### Critical Bug: Memories Not Feeding Into Cognitive Loop
+
+**Location**: `services/orchestrator/sima_orchestrator/awake_loop.py:373`
+
+```python
+variables["retrieved_snippets"] = []  # Would come from vector DB
+```
+
+The memory retrieval is stubbed out. L3 core memories (genesis) and L1/L2 memories are never loaded into the cognitive loop.
+
+**Fix required**:
+1. In `_run_candidate_modules()`, retrieve memories from database using `MemoryRepository`
+2. Load L3 core memories (always available) + relevant L1/L2 memories
+3. Pass retrieved memories as `retrieved_snippets` to the `memory_retrieval` module
+4. Consider also passing core memories to `inner_monologue` for continuity
+
+**Code change needed** in `awake_loop.py`:
+```python
+# Before running memory_retrieval module:
+from sima_storage.repository import MemoryRepository
+from sima_storage.database import get_session
+
+async with get_session() as session:
+    repo = MemoryRepository(session)
+    # Always load L3 core memories
+    l3_memories = await repo.list_by_type("L3", limit=10)
+    # Load recent L1/L2 memories
+    l1_memories = await repo.list_by_type("L1", limit=20)
+
+    retrieved_snippets = [
+        {"type": m.memory_type, "content": m.content, "relevance": m.relevance_score}
+        for m in l3_memories + l1_memories
+    ]
+
+variables["retrieved_snippets"] = retrieved_snippets
+```
+
+### Missing Feature: API to Create Memories
+
+**Current state**: No `POST /memories` endpoint exists. Memories can only be created by:
+- Genesis seeding via `/admin/seed-genesis`
+- Sleep consolidation job
+
+**Fix required**: Add `POST /memories` endpoint to `services/api/sima_api/routes/memories.py`:
+```python
+class CreateMemoryRequest(BaseModel):
+    memory_type: str  # L1, L2, L3, or specific like "l3_belief"
+    content: str
+    metadata_json: dict | None = None
+
+@router.post("", response_model=MemoryItem)
+async def create_memory(
+    request: CreateMemoryRequest,
+    _: Annotated[bool, Depends(require_admin_auth)],  # Admin only
+):
+    """Create a new memory. Admin-only endpoint."""
+    ...
+```
+
+### Telegram: Sending Messages as Tal
+
+The bot is configured with Tal's chat ID: `telegram_tal_chat_id: int = 1196325805`
+
+To send a message to Sima:
+1. Find the bot on Telegram (check secrets for bot username, likely `@synthc_bot`)
+2. Start a conversation with the bot
+3. Send a message - it will be processed by the orchestrator
+
+The bot name can be found via:
+```bash
+aws secretsmanager get-secret-value --secret-id "sima/telegram/bot-token" \
+  --profile private --region us-east-1 --query 'SecretString' --output text
+```
+Then check the bot info via Telegram API or just search for the bot name in the Telegram app.
+
+---
+
 ## 13. Implementation Order
 
 1. Event store + migrations
