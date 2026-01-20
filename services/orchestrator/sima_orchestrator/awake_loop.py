@@ -23,6 +23,8 @@ from uuid import UUID
 from sima_core.ids import generate_id
 from sima_core.types import Actor, EventType, InputType, Stream
 
+from sima_storage.database import close_db
+
 from .module_runner import ModuleRunner, ModuleResult
 from .persistence import TracePersistence, create_trace, persist_trace, get_prior_attention_prediction
 from .settings import Settings
@@ -142,6 +144,8 @@ class AwakeLoop:
         Returns:
             TraceContext with all module results.
         """
+        # Close any existing DB connections to avoid event loop conflicts
+        asyncio.run(close_db())
         return asyncio.run(
             self._run_async(
                 input_type=InputType.USER_MESSAGE,
@@ -167,6 +171,8 @@ class AwakeLoop:
         Returns:
             TraceContext with all module results.
         """
+        # Close any existing DB connections to avoid event loop conflicts
+        asyncio.run(close_db())
         return asyncio.run(
             self._run_async(
                 input_type=input_type,
