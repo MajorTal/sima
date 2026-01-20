@@ -49,3 +49,51 @@ body {
 .actor-workspace { @apply bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200; }
 .actor-metacog { @apply bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200; }
 .actor-speaker { @apply bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200; }
+
+/* Memory panel colors */
+.stream-memories {
+  @apply border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-900/20;
+}
+
+/* Memory type badges */
+.memory-badge {
+  @apply px-2 py-0.5 rounded text-xs font-medium;
+}
+
+.memory-L3 {
+  @apply bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200;
+}
+
+.memory-L2 {
+  @apply bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200;
+}
+
+.memory-L1 {
+  @apply bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200;
+}
+
+/* Memory card styles */
+.memory-card {
+  @apply p-3 rounded-lg transition-opacity cursor-pointer hover:opacity-80;
+}
+
+.memory-card-L3 {
+  @apply bg-amber-50 border border-amber-200 dark:bg-amber-900/30 dark:border-amber-700;
+}
+
+.memory-card-L2 {
+  @apply bg-teal-50 border border-teal-200 dark:bg-teal-900/30 dark:border-teal-700;
+}
+
+.memory-card-L1 {
+  @apply bg-slate-50 border border-slate-200 dark:bg-slate-800/50 dark:border-slate-600;
+}
+
+/* Four panel grid layout */
+.four-panel-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-4 h-full;
+}
+
+.four-panel-grid > div {
+  @apply min-h-[300px] md:min-h-0;
+}

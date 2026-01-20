@@ -13,7 +13,7 @@ from sima_storage.database import init_db, close_db
 
 from .settings import settings
 from .auth import LoginRequest, TokenResponse, login
-from .routes import traces_router, events_router, metrics_router, admin_router
+from .routes import traces_router, events_router, metrics_router, admin_router, memories_router
 from .websocket import router as websocket_router
 
 # Configure logging
@@ -60,6 +60,7 @@ app.include_router(traces_router)
 app.include_router(events_router)
 app.include_router(metrics_router)
 app.include_router(admin_router)
+app.include_router(memories_router)
 app.include_router(websocket_router)
 
 

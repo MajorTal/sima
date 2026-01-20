@@ -50,6 +50,7 @@ export default function StreamPanel({
     conscious: 'border-purple-500',
     subconscious: 'border-gray-400',
     sleep: 'border-indigo-500',
+    memories: 'border-amber-500',
   };
 
   return (

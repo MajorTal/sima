@@ -70,3 +70,10 @@ localstack_data/
 *.pem
 *.key
 credentials.json
+
+# Terraform
+*.tfvars
+.terraform/
+*.tfstate
+*.tfstate.backup
+tfplan

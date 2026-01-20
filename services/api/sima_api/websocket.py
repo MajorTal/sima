@@ -26,6 +26,7 @@ class ConnectionManager:
             "external": [],
             "conscious": [],
             "subconscious": [],
+            "memories": [],
         }
 
     async def connect(self, websocket: WebSocket, stream: str = "all"):
@@ -78,7 +79,7 @@ async def websocket_events(
     WebSocket endpoint for streaming events.
 
     Connect to receive real-time events as they are persisted.
-    Filter by stream: all, external, conscious, subconscious.
+    Filter by stream: all, external, conscious, subconscious, memories.
     """
     await manager.connect(websocket, stream)
 
@@ -127,4 +128,19 @@ async def broadcast_event(event_data: dict[str, Any]):
             "data": event_data,
         },
         stream=stream,
+    )
+
+
+async def broadcast_memory(memory_data: dict[str, Any]):
+    """
+    Broadcast a memory update to WebSocket subscribers.
+
+    Called when a new memory is created or updated.
+    """
+    await manager.broadcast(
+        {
+            "type": "memory",
+            "data": memory_data,
+        },
+        stream="memories",
     )

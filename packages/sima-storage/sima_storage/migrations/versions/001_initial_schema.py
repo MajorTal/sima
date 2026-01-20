@@ -19,8 +19,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Enable ParadeDB pg_search extension (required for BM25 indexes)
-    op.execute("CREATE EXTENSION IF NOT EXISTS pg_search")
+    # Note: ParadeDB pg_search extension not available on standard RDS
+    # BM25 indexes skipped - can add later if ParadeDB becomes available
 
     # Create traces table
     op.create_table(
@@ -129,18 +129,10 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("key"),
     )
 
-    # Create ParadeDB BM25 indexes for full-text search
-    op.execute("""
-        CREATE INDEX events_content_bm25 ON events
-        USING bm25 (event_id, content_text)
-        WITH (key_field='event_id')
-    """)
-
-    op.execute("""
-        CREATE INDEX memories_content_bm25 ON memories
-        USING bm25 (memory_id, content)
-        WITH (key_field='memory_id')
-    """)
+    # Note: BM25 indexes require ParadeDB pg_search extension
+    # Using standard GIN indexes for text search instead
+    op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
+    op.create_index("ix_events_content_text_gin", "events", ["content_text"], postgresql_using="gin", postgresql_ops={"content_text": "gin_trgm_ops"})
 
 
 def downgrade() -> None:
