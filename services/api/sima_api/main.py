@@ -1,5 +1,9 @@
 """
 FastAPI application for the SIMA API.
+
+Runs as:
+- Lambda function (via Mangum adapter)
+- Local dev server (via uvicorn)
 """
 
 import logging
@@ -8,13 +12,13 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from mangum import Mangum
 
 from sima_storage.database import init_db, close_db
 
 from .settings import settings
 from .auth import LoginRequest, TokenResponse, login
 from .routes import traces_router, events_router, metrics_router, admin_router, memories_router, webhook_router
-from .websocket import router as websocket_router
 
 # Configure logging
 logging.basicConfig(
@@ -62,7 +66,8 @@ app.include_router(metrics_router)
 app.include_router(admin_router)
 app.include_router(memories_router)
 app.include_router(webhook_router)
-app.include_router(websocket_router)
+# WebSocket disabled - will be replaced with push-based solution later
+# app.include_router(websocket_router)
 
 
 @app.get("/health")
@@ -97,6 +102,10 @@ def run():
         port=settings.port,
         reload=settings.debug,
     )
+
+
+# Lambda handler (via Mangum)
+handler = Mangum(app, lifespan="off")
 
 
 if __name__ == "__main__":

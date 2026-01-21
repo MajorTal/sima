@@ -1,0 +1,16 @@
+FROM public.ecr.aws/lambda/python:3.13
+
+# Copy workspace files
+WORKDIR /var/task
+
+COPY packages/sima-core/ ./packages/sima-core/
+COPY packages/sima-storage/ ./packages/sima-storage/
+COPY services/api/ ./services/api/
+
+# Install packages directly with pip (Lambda runtime)
+RUN pip install ./packages/sima-core && \
+    pip install ./packages/sima-storage && \
+    pip install ./services/api
+
+# Set the handler (module.function format)
+CMD ["sima_api.main.handler"]
