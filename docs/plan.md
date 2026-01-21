@@ -317,20 +317,57 @@ These are sanity checks, not consciousness indicators.
 - Budget: **$50-200/day** (generous, optimize for research quality)
 
 ### 9.2 AWS Services
-- **ECS/Fargate**: All services containerized
+- **Lambda + API Gateway**: API service (stateless REST endpoints)
+- **ECS/Fargate**: Orchestrator (SQS consumer, long-running)
+- **Amplify Hosting**: Web frontend (Next.js SSR)
 - **RDS Postgres**: Event store + derived tables
 - **S3**: Large payloads (optional)
 - **SQS**: Message queue for incoming updates
 - **EventBridge**: Minute tick, autonomous tick, sleep scheduling
 
 ### 9.3 Services
-| Service | Role |
-|---------|------|
-| ingest-api | Telegram webhook → SQS |
-| orchestrator | SQS consumer → awake loop → Telegram out |
-| sleep | Scheduled consolidation job |
-| api | Backend for web (public + lab endpoints) |
-| web | Next.js frontend |
+| Service | Runtime | Role |
+|---------|---------|------|
+| api | Lambda + API Gateway | REST API + Telegram webhook → SQS |
+| orchestrator | ECS Fargate | SQS consumer → awake loop → Telegram out |
+| sleep | ECS Fargate (scheduled) | Scheduled consolidation job |
+| web | Amplify Hosting | Next.js frontend |
+
+### 9.4 Architecture Diagram
+
+```
+                    INTERNET
+                        │
+         ┌──────────────┴──────────────┐
+         ▼                             ▼
+   sima.talsai.com              api.sima.talsai.com
+         │                             │
+         ▼                             ▼
+   ┌───────────┐              ┌─────────────────┐
+   │  Amplify  │              │  API Gateway    │
+   │ (Next.js) │              │  (HTTP API)     │
+   └───────────┘              └─────────────────┘
+                                       │
+                                       ▼
+                              ┌─────────────────┐
+                              │     Lambda      │
+                              │   (sima-api)    │
+                              │  FastAPI/Mangum │
+                              └─────────────────┘
+                                │           │
+                                ▼           ▼
+                           ┌────────┐  ┌────────┐
+                           │Postgres│  │  SQS   │
+                           │ (RDS)  │  │        │
+                           └────────┘  └────────┘
+                                           │
+                                           ▼
+                              ┌─────────────────┐
+                              │  ECS Fargate    │
+                              │  (orchestrator) │
+                              │  SQS consumer   │
+                              └─────────────────┘
+```
 
 ---
 
@@ -429,7 +466,7 @@ tags            TEXT[]
 
 ## 12.1 Implementation Status
 
-> **Last Updated**: 2026-01-19 (e2e tests added, M0/M1 at 100% testability)
+> **Last Updated**: 2026-01-21 (infrastructure simplified: Lambda + Amplify)
 
 ### Milestone Status
 
@@ -449,11 +486,11 @@ tags            TEXT[]
 | **sima-llm** | `packages/sima-llm/` | ✅ Complete | OpenAI provider working (6 integration tests) |
 | **sima-prompts** | `packages/sima-prompts/` | ✅ Complete | Registry + renderer, 11 YAML prompts (added inner_monologue) |
 | **sima-storage** | `packages/sima-storage/` | ✅ Complete | Models, repository, migrations (7 integration tests) |
-| **orchestrator** | `services/orchestrator/` | ✅ Complete | Awake loop + module runner (4 integration + 84 unit tests). Docker build working. |
-| **ingest-api** | `services/ingest-api/` | ✅ Complete | FastAPI + webhook + SQS. Docker build working. |
-| **api** | `services/api/` | ✅ Complete | REST + WebSocket + auth (6 integration + 10 WebSocket tests). Docker build working. |
-| **web** | `services/web/` | ✅ 85% | Next.js app, routing fixed. Docker build working. Needs 4-panel public view. |
-| **sleep** | `services/sleep/` | ✅ 90% | Consolidation job, memory tiering, Telegram posting, genesis.md. Docker build working. |
+| **orchestrator** | `services/orchestrator/` | ✅ Complete | Awake loop + module runner (4 integration + 84 unit tests). ECS Fargate. |
+| **api** | `services/api/` | ✅ Complete | REST + auth + webhook (merged ingest). **Lambda + API Gateway**. |
+| **web** | `services/web/` | ✅ 85% | Next.js app, routing fixed. **Amplify Hosting**. Needs 4-panel public view. |
+| **sleep** | `services/sleep/` | ✅ 90% | Consolidation job, memory tiering, Telegram posting, genesis.md. ECS Fargate (scheduled). |
+| **ingest-api** | `services/ingest-api/` | ⚠️ Deprecated | Merged into api service. Code kept for reference. |
 
 ### Implementation Gaps
 
@@ -562,42 +599,17 @@ tags            TEXT[]
 
 ## TODO: Memory System Fixes (2026-01-20)
 
-### Critical Bug: Memories Not Feeding Into Cognitive Loop
+### ~~Critical Bug: Memories Not Feeding Into Cognitive Loop~~ ✅ RESOLVED (2026-01-21)
 
-**Location**: `services/orchestrator/sima_orchestrator/awake_loop.py:373`
+**Location**: `services/orchestrator/sima_orchestrator/awake_loop.py`
 
-```python
-variables["retrieved_snippets"] = []  # Would come from vector DB
-```
+**Fix implemented**: Added `_retrieve_memories()` method that:
+1. Loads L3 core memories (genesis, stable beliefs) - always available
+2. Loads recent L1 trace digests
+3. Loads L2 consolidated memories when available
+4. Passes all to `memory_retrieval` module as `retrieved_snippets`
 
-The memory retrieval is stubbed out. L3 core memories (genesis) and L1/L2 memories are never loaded into the cognitive loop.
-
-**Fix required**:
-1. In `_run_candidate_modules()`, retrieve memories from database using `MemoryRepository`
-2. Load L3 core memories (always available) + relevant L1/L2 memories
-3. Pass retrieved memories as `retrieved_snippets` to the `memory_retrieval` module
-4. Consider also passing core memories to `inner_monologue` for continuity
-
-**Code change needed** in `awake_loop.py`:
-```python
-# Before running memory_retrieval module:
-from sima_storage.repository import MemoryRepository
-from sima_storage.database import get_session
-
-async with get_session() as session:
-    repo = MemoryRepository(session)
-    # Always load L3 core memories
-    l3_memories = await repo.list_by_type("L3", limit=10)
-    # Load recent L1/L2 memories
-    l1_memories = await repo.list_by_type("L1", limit=20)
-
-    retrieved_snippets = [
-        {"type": m.memory_type, "content": m.content, "relevance": m.relevance_score}
-        for m in l3_memories + l1_memories
-    ]
-
-variables["retrieved_snippets"] = retrieved_snippets
-```
+Also added pause check in worker to respect admin pause button.
 
 ### Missing Feature: API to Create Memories
 
