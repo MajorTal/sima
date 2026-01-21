@@ -34,6 +34,30 @@
         }
       }
     },
+    "sensory_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Context from environmental senses (weather, fear index)",
+      "properties": {
+        "weather_summary": {
+          "type": "string",
+          "description": "Brief summary of current weather conditions"
+        },
+        "fear_level_summary": {
+          "type": "string",
+          "description": "Brief summary of global fear/market sentiment"
+        },
+        "sensory_salience": {
+          "type": "string",
+          "enum": ["low", "moderate", "high"],
+          "description": "How salient/noteworthy the sensory data is"
+        },
+        "sensory_notes": {
+          "type": "string",
+          "description": "Any notable observations about sensory data"
+        }
+      }
+    },
     "summary": { "type": "string" },
     "intents": { "type": "array", "items": { "type": "string" } },
     "entities": { "type": "array", "items": { "type": "string" } },

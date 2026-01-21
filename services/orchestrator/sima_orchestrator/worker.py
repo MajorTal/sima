@@ -5,8 +5,13 @@ Handles:
 - Telegram webhook events (user messages)
 - Minute tick events (time-based triggers)
 - Autonomous tick events (scheduled thinking triggers)
+
+Enriches tick events with sensory data:
+- Weather (temperature, conditions, humidity)
+- Fear index (VIX, crypto fear & greed)
 """
 
+import asyncio
 import json
 import logging
 from datetime import datetime
@@ -18,6 +23,7 @@ import boto3
 from sima_core.types import InputType
 from sima_llm import LLMRouter
 from sima_prompts import PromptRegistry
+from sima_senses import fetch_all_senses
 
 from .awake_loop import AwakeLoop
 from .module_runner import ModuleRunner
@@ -171,7 +177,7 @@ class SQSWorker:
         """
         Handle a minute tick event.
 
-        Constructs tick metadata and passes to awake loop.
+        Constructs tick metadata with sensory data and passes to awake loop.
         """
         now = datetime.now(self.timezone)
 
@@ -183,6 +189,15 @@ class SQSWorker:
             "tick_day_of_week": now.strftime("%A"),
             "tick_unix": int(now.timestamp()),
         }
+
+        # Fetch sensory data (weather, fear index)
+        sense_data = asyncio.run(fetch_all_senses())
+        if sense_data.has_data():
+            tick_metadata["senses"] = sense_data.to_dict()
+            logger.info(
+                f"Senses fetched: weather={sense_data.weather is not None}, "
+                f"fear_index={sense_data.fear_index is not None}"
+            )
 
         logger.info(
             f"Handling minute tick: {now.strftime('%Y-%m-%d %H:%M')} "
@@ -199,6 +214,7 @@ class SQSWorker:
         Handle an autonomous tick event.
 
         Similar to minute tick but less frequent, for deeper thinking.
+        Includes sensory data (weather, fear index).
         """
         now = datetime.now(self.timezone)
 
@@ -209,6 +225,15 @@ class SQSWorker:
             "tick_minute": now.minute,
             "tick_day_of_week": now.strftime("%A"),
         }
+
+        # Fetch sensory data (weather, fear index)
+        sense_data = asyncio.run(fetch_all_senses())
+        if sense_data.has_data():
+            tick_metadata["senses"] = sense_data.to_dict()
+            logger.info(
+                f"Senses fetched: weather={sense_data.weather is not None}, "
+                f"fear_index={sense_data.fear_index is not None}"
+            )
 
         logger.info(f"Handling autonomous tick: {now.isoformat()}")
 

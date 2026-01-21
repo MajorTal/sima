@@ -13,6 +13,7 @@ members = [
     "packages/sima-core",
     "packages/sima-llm",
     "packages/sima-prompts",
+    "packages/sima-senses",
     "packages/sima-storage",
     "services/orchestrator",
     "services/ingest-api",
@@ -24,6 +25,7 @@ members = [
 sima-core = { workspace = true }
 sima-llm = { workspace = true }
 sima-prompts = { workspace = true }
+sima-senses = { workspace = true }
 sima-storage = { workspace = true }
 
 [dependency-groups]

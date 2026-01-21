@@ -25,6 +25,7 @@ dependencies = [
     "sima-core",
     "sima-llm[openai]",
     "sima-prompts",
+    "sima-senses",
     "sima-storage",
 ]
 
