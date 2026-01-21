@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     aws_region: str = "us-east-1"
     aws_profile: str | None = None
     sqs_queue_url: str = ""
+    sqs_endpoint_url: str | None = "http://localhost:4566"  # For LocalStack; set to None for real AWS
 
     # Telegram
     telegram_bot_token: str = ""

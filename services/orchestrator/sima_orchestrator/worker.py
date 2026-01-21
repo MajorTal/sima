@@ -7,6 +7,7 @@ Handles:
 - Autonomous tick events (scheduled thinking triggers)
 """
 
+import asyncio
 import json
 import logging
 from datetime import datetime
@@ -89,7 +90,12 @@ class SQSWorker:
         if self.settings.aws_profile:
             session_kwargs["profile_name"] = self.settings.aws_profile
         session = boto3.Session(**session_kwargs)
-        self.sqs = session.client("sqs")
+
+        # Create SQS client (with optional LocalStack endpoint)
+        client_kwargs = {}
+        if self.settings.sqs_endpoint_url:
+            client_kwargs["endpoint_url"] = self.settings.sqs_endpoint_url
+        self.sqs = session.client("sqs", **client_kwargs)
         self.queue_url = self.settings.sqs_queue_url
 
         # Minute tick configuration
@@ -146,7 +152,13 @@ class SQSWorker:
         Process a single SQS message.
 
         Routes to appropriate handler based on event_type.
+        Respects system paused state - skips processing when paused.
         """
+        # Check if system is paused
+        if asyncio.run(is_system_paused()):
+            logger.info("System is paused, skipping message processing")
+            return
+
         body = json.loads(sqs_message.get("Body", "{}"))
         event_type = body.get("event_type", "telegram_update")
 

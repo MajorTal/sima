@@ -23,7 +23,8 @@ from uuid import UUID
 from sima_core.ids import generate_id
 from sima_core.types import Actor, EventType, InputType, Stream
 
-from sima_storage.database import close_db
+from sima_storage.database import close_db, get_session
+from sima_storage.repository import MemoryRepository
 
 from .module_runner import ModuleRunner, ModuleResult
 from .persistence import TracePersistence, create_trace, persist_trace, get_prior_attention_prediction, get_recent_monologues
@@ -367,10 +368,13 @@ class AwakeLoop:
             ],
         }
 
+        # Retrieve memories from database for memory_retrieval module
+        retrieved_snippets = await self._retrieve_memories(ctx)
+
         for module in modules:
             variables = base_variables.copy()
             if module == "memory_retrieval":
-                variables["retrieved_snippets"] = []  # Would come from vector DB
+                variables["retrieved_snippets"] = retrieved_snippets
 
             tasks.append(self.module_runner.run(module, variables))
 
@@ -398,6 +402,68 @@ class AwakeLoop:
                     module,
                     result.output,
                 )
+
+    async def _retrieve_memories(self, ctx: TraceContext) -> list[dict]:
+        """
+        Retrieve memories from the database for the cognitive loop.
+
+        Loads:
+        - L3 core memories (always available, including genesis)
+        - Recent L1 trace digests
+        - L2 consolidated memories (when available)
+
+        Returns a list of memory snippets for the memory_retrieval module.
+        """
+        retrieved_snippets = []
+
+        try:
+            async with get_session() as session:
+                repo = MemoryRepository(session)
+
+                # Always load L3 core memories (genesis, stable beliefs)
+                l3_memories = await repo.list_by_type("L3", limit=10)
+                for m in l3_memories:
+                    retrieved_snippets.append({
+                        "id": str(m.memory_id),
+                        "type": m.memory_type,
+                        "level": "L3",
+                        "content": m.content,
+                        "relevance_score": m.relevance_score,
+                        "category": m.metadata_json.get("category") if m.metadata_json else None,
+                    })
+
+                # Load recent L1 trace digests
+                l1_memories = await repo.list_by_type("L1", limit=20)
+                for m in l1_memories:
+                    retrieved_snippets.append({
+                        "id": str(m.memory_id),
+                        "type": m.memory_type,
+                        "level": "L1",
+                        "content": m.content,
+                        "relevance_score": m.relevance_score,
+                    })
+
+                # Load L2 consolidated memories if available
+                l2_memories = await repo.list_by_type("L2", limit=10)
+                for m in l2_memories:
+                    retrieved_snippets.append({
+                        "id": str(m.memory_id),
+                        "type": m.memory_type,
+                        "level": "L2",
+                        "content": m.content,
+                        "relevance_score": m.relevance_score,
+                    })
+
+            logger.debug(
+                f"Retrieved {len(retrieved_snippets)} memories: "
+                f"{len(l3_memories)} L3, {len(l1_memories)} L1, {len(l2_memories)} L2"
+            )
+
+        except Exception as e:
+            logger.warning(f"Failed to retrieve memories: {e}")
+            # Continue without memories rather than failing the loop
+
+        return retrieved_snippets
 
     async def _run_attention_gate(self, ctx: TraceContext) -> None:
         """
@@ -665,10 +731,13 @@ class AwakeLoop:
             "is_belief_revision": True,
         }
 
+        # Retrieve memories from database for memory_retrieval module
+        retrieved_snippets = await self._retrieve_memories(ctx)
+
         for module in modules:
             variables = base_variables.copy()
             if module == "memory_retrieval":
-                variables["retrieved_snippets"] = []
+                variables["retrieved_snippets"] = retrieved_snippets
 
             tasks.append(self.module_runner.run(module, variables))
 
