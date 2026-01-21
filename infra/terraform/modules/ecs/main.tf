@@ -409,27 +409,27 @@ resource "aws_ecs_service" "ingest" {
 }
 
 # =============================================================================
-# Orchestrator Service (SQS worker)
+# Brain Service (SQS worker) - The cognitive loop
 # =============================================================================
-resource "aws_ecs_task_definition" "orchestrator" {
-  family                   = "sima-${var.environment}-orchestrator"
+resource "aws_ecs_task_definition" "brain" {
+  family                   = "sima-${var.environment}-brain"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = var.orchestrator_cpu
-  memory                   = var.orchestrator_memory
+  cpu                      = var.brain_cpu
+  memory                   = var.brain_memory
   execution_role_arn       = aws_iam_role.ecs_execution.arn
   task_role_arn            = aws_iam_role.ecs_task.arn
 
   container_definitions = jsonencode([
     {
-      name  = "orchestrator"
-      image = "${var.ecr_repository_urls["orchestrator"]}:${var.image_tag}"
+      name  = "brain"
+      image = "${var.ecr_repository_urls["brain"]}:${var.image_tag}"
       environment = [
         { name = "SQS_QUEUE_URL", value = var.sqs_queue_url },
         { name = "S3_BUCKET", value = var.s3_bucket_name },
         { name = "MINUTE_TICK_ENABLED", value = tostring(var.minute_tick_enabled) },
         { name = "AUTONOMOUS_TICK_ENABLED", value = tostring(var.autonomous_tick_enabled) },
-        { name = "TIMEZONE", value = var.orchestrator_timezone }
+        { name = "TIMEZONE", value = var.brain_timezone }
       ]
       secrets = [
         {
@@ -454,7 +454,7 @@ resource "aws_ecs_task_definition" "orchestrator" {
         options = {
           awslogs-group         = aws_cloudwatch_log_group.ecs.name
           awslogs-region        = var.aws_region
-          awslogs-stream-prefix = "orchestrator"
+          awslogs-stream-prefix = "brain"
         }
       }
     }
@@ -462,15 +462,15 @@ resource "aws_ecs_task_definition" "orchestrator" {
 
   tags = {
     Environment = var.environment
-    Service     = "orchestrator"
+    Service     = "brain"
   }
 }
 
-resource "aws_ecs_service" "orchestrator" {
-  name            = "sima-${var.environment}-orchestrator"
+resource "aws_ecs_service" "brain" {
+  name            = "sima-${var.environment}-brain"
   cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.orchestrator.arn
-  desired_count   = var.orchestrator_desired_count
+  task_definition = aws_ecs_task_definition.brain.arn
+  desired_count   = var.brain_desired_count
   launch_type     = var.use_fargate_spot ? null : "FARGATE"
 
   dynamic "capacity_provider_strategy" {
@@ -494,7 +494,7 @@ resource "aws_ecs_service" "orchestrator" {
 
   tags = {
     Environment = var.environment
-    Service     = "orchestrator"
+    Service     = "brain"
   }
 }
 

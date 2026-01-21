@@ -77,10 +77,10 @@ repo/
         routes.py
         settings.py
 
-    orchestrator/
+    brain/
       Dockerfile
       pyproject.toml
-      sima_orchestrator/
+      sima_brain/
         __init__.py
         worker.py
         awake_loop.py
@@ -323,7 +323,7 @@ Terraform in infra/terraform creates:
 - VPC + subnets
 - ECS cluster + services:
   - sima-ingest-api (ALB webhook)
-  - sima-orchestrator (SQS consumer)
+  - sima-brain (SQS consumer - The Brain)
   - sima-api (web backend)
   - sima-web (frontend)
   - sima-sleep (scheduled task via EventBridge)
@@ -333,8 +333,8 @@ Terraform in infra/terraform creates:
 
 High-Level Data Flow
 --------------------
-Telegram -> (Webhook) ingest-api -> SQS -> orchestrator
-orchestrator:
+Telegram -> (Webhook) ingest-api -> SQS -> brain (The Brain)
+The Brain:
 - runs awake loop (modules -> attention gate -> workspace -> broadcast -> speaker)
 - sends Telegram outbound messages (external + conscious + subconscious)
 - persists every event (event sourcing) to Postgres (+ optional S3)

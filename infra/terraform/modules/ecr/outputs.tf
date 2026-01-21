@@ -25,9 +25,9 @@ output "ingest_repository_url" {
   value       = aws_ecr_repository.services["ingest-api"].repository_url
 }
 
-output "orchestrator_repository_url" {
-  description = "Orchestrator service repository URL"
-  value       = aws_ecr_repository.services["orchestrator"].repository_url
+output "brain_repository_url" {
+  description = "Brain service repository URL"
+  value       = aws_ecr_repository.services["brain"].repository_url
 }
 
 output "sleep_repository_url" {

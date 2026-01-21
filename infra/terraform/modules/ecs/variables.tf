@@ -194,20 +194,20 @@ variable "ingest_desired_count" {
 }
 
 # Orchestrator service settings
-variable "orchestrator_cpu" {
-  description = "CPU units for orchestrator service"
+variable "brain_cpu" {
+  description = "CPU units for brain service"
   type        = number
   default     = 512
 }
 
-variable "orchestrator_memory" {
-  description = "Memory (MB) for orchestrator service"
+variable "brain_memory" {
+  description = "Memory (MB) for brain service"
   type        = number
   default     = 1024
 }
 
-variable "orchestrator_desired_count" {
-  description = "Desired task count for orchestrator service"
+variable "brain_desired_count" {
+  description = "Desired task count for brain service"
   type        = number
   default     = 1
 }
@@ -239,19 +239,19 @@ variable "sleep_schedule" {
 
 # Orchestrator tick settings
 variable "minute_tick_enabled" {
-  description = "Enable minute tick events in orchestrator"
+  description = "Enable minute tick events in brain"
   type        = bool
   default     = true
 }
 
 variable "autonomous_tick_enabled" {
-  description = "Enable autonomous tick events in orchestrator"
+  description = "Enable autonomous tick events in brain"
   type        = bool
   default     = true
 }
 
-variable "orchestrator_timezone" {
-  description = "Timezone for orchestrator"
+variable "brain_timezone" {
+  description = "Timezone for brain"
   type        = string
   default     = "UTC"
 }

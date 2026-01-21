@@ -1,12 +1,12 @@
 """
-Settings for the orchestrator service.
+Settings for The Brain service.
 """
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Configuration settings for the orchestrator."""
+    """Configuration settings for The Brain."""
 
     model_config = SettingsConfigDict(
         env_file=".env",

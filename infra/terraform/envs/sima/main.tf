@@ -227,14 +227,14 @@ module "ecs" {
   ingest_memory        = 512
   ingest_desired_count = 1
 
-  orchestrator_cpu           = 512
-  orchestrator_memory        = 1024
-  orchestrator_desired_count = 1
+  brain_cpu           = 512
+  brain_memory        = 1024
+  brain_desired_count = 1
 
-  # Orchestrator tick settings
+  # Brain tick settings
   minute_tick_enabled     = true
   autonomous_tick_enabled = true
-  orchestrator_timezone   = "Asia/Jerusalem"
+  brain_timezone   = "Asia/Jerusalem"
 
   sleep_cpu             = 512
   sleep_memory          = 1024

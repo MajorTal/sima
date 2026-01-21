@@ -14,7 +14,7 @@ members = [
     "packages/sima-llm",
     "packages/sima-prompts",
     "packages/sima-storage",
-    "services/orchestrator",
+    "services/brain",
     "services/ingest-api",
     "services/api",
     "services/sleep",

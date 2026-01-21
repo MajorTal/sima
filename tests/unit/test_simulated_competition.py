@@ -7,7 +7,7 @@ compete for workspace access through mutual inhibition dynamics.
 
 import pytest
 
-from sima_orchestrator.simulated_competition import (
+from sima_brain.simulated_competition import (
     CompetitionResult,
     CandidateState,
     compute_similarity,

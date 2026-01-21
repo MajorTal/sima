@@ -10,7 +10,7 @@ terraform {
 }
 
 locals {
-  services = ["web", "api", "ingest-api", "orchestrator", "sleep"]
+  services = ["web", "api", "ingest-api", "brain", "sleep"]
 }
 
 # ECR Repositories for each service

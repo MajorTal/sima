@@ -43,7 +43,7 @@ async def telegram_webhook(
     Receive Telegram webhook updates.
 
     The endpoint receives updates from Telegram and enqueues them
-    to SQS for asynchronous processing by the orchestrator.
+    to SQS for asynchronous processing by The Brain.
     """
     # Verify webhook secret
     if not verify_telegram_secret(x_telegram_bot_api_secret_token):

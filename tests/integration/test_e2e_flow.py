@@ -2,7 +2,7 @@
 End-to-end integration tests for the complete SIMA flow.
 
 Tests the full M0 pipeline:
-    Telegram webhook → SQS → Orchestrator → DB → API
+    Telegram webhook → SQS → Brain → DB → API
 
 This file tests the complete flow with mocked LLM responses,
 verifying that events are properly created, persisted, and retrievable.
@@ -267,7 +267,7 @@ def mock_telegram_client():
 
 @pytest.fixture
 def mock_settings():
-    """Create mock settings for the orchestrator."""
+    """Create mock settings for The Brain."""
     settings = MagicMock()
     settings.telegram_bot_token = ""
     settings.telegram_telemetry_enabled = False
@@ -300,8 +300,8 @@ class TestE2EAwakeLoop:
     async def test_full_awake_loop_flow(self, setup_db, mock_llm_router, mock_telegram_client, mock_settings, project_root):
         """Test the complete awake loop from message to persistence."""
         from sima_prompts import PromptRegistry
-        from sima_orchestrator.module_runner import ModuleRunner
-        from sima_orchestrator.awake_loop import AwakeLoop
+        from sima_brain.module_runner import ModuleRunner
+        from sima_brain.awake_loop import AwakeLoop
 
         # Create module runner with mock LLM
         module_runner = ModuleRunner(
@@ -374,8 +374,8 @@ class TestE2EAwakeLoop:
     async def test_suppressed_tick_still_generates_monologue(self, setup_db, mock_llm_router, mock_telegram_client, mock_settings, project_root):
         """Test that suppressed ticks still generate inner monologue."""
         from sima_prompts import PromptRegistry
-        from sima_orchestrator.module_runner import ModuleRunner
-        from sima_orchestrator.awake_loop import AwakeLoop
+        from sima_brain.module_runner import ModuleRunner
+        from sima_brain.awake_loop import AwakeLoop
 
         # Override perception response to suppress output
         suppressed_response = {
@@ -450,8 +450,8 @@ class TestE2EAwakeLoop:
     async def test_candidates_flow_through_attention_gate(self, setup_db, mock_llm_router, mock_telegram_client, mock_settings, project_root):
         """Test that candidates from parallel modules flow through attention gate."""
         from sima_prompts import PromptRegistry
-        from sima_orchestrator.module_runner import ModuleRunner
-        from sima_orchestrator.awake_loop import AwakeLoop
+        from sima_brain.module_runner import ModuleRunner
+        from sima_brain.awake_loop import AwakeLoop
 
         module_runner = ModuleRunner(
             llm_router=mock_llm_router,
@@ -499,8 +499,8 @@ class TestE2EPersistence:
     async def test_trace_and_events_persist_correctly(self, setup_db, mock_llm_router, mock_telegram_client, mock_settings, project_root):
         """Test that traces and events are persisted with correct data."""
         from sima_prompts import PromptRegistry
-        from sima_orchestrator.module_runner import ModuleRunner
-        from sima_orchestrator.awake_loop import AwakeLoop
+        from sima_brain.module_runner import ModuleRunner
+        from sima_brain.awake_loop import AwakeLoop
 
         module_runner = ModuleRunner(
             llm_router=mock_llm_router,
@@ -552,8 +552,8 @@ class TestE2EPersistence:
     async def test_events_can_be_filtered_by_stream(self, setup_db, mock_llm_router, mock_telegram_client, mock_settings, project_root):
         """Test that events can be filtered by stream."""
         from sima_prompts import PromptRegistry
-        from sima_orchestrator.module_runner import ModuleRunner
-        from sima_orchestrator.awake_loop import AwakeLoop
+        from sima_brain.module_runner import ModuleRunner
+        from sima_brain.awake_loop import AwakeLoop
 
         module_runner = ModuleRunner(
             llm_router=mock_llm_router,
@@ -684,8 +684,8 @@ class TestE2EWorkerProcessing:
     async def test_worker_processes_telegram_update(self, setup_db, mock_llm_router, mock_settings, project_root):
         """Test that worker correctly processes a Telegram update message via direct awake loop call."""
         from sima_prompts import PromptRegistry
-        from sima_orchestrator.module_runner import ModuleRunner
-        from sima_orchestrator.awake_loop import AwakeLoop
+        from sima_brain.module_runner import ModuleRunner
+        from sima_brain.awake_loop import AwakeLoop
 
         module_runner = ModuleRunner(
             llm_router=mock_llm_router,
@@ -721,8 +721,8 @@ class TestE2EWorkerProcessing:
     async def test_worker_processes_minute_tick(self, setup_db, mock_llm_router, mock_settings, project_root):
         """Test that worker correctly processes minute tick events via direct awake loop call."""
         from sima_prompts import PromptRegistry
-        from sima_orchestrator.module_runner import ModuleRunner
-        from sima_orchestrator.awake_loop import AwakeLoop
+        from sima_brain.module_runner import ModuleRunner
+        from sima_brain.awake_loop import AwakeLoop
 
         # Use suppressed perception for tick
         suppressed_response = {
@@ -803,7 +803,7 @@ def is_api_running() -> bool:
 
 @pytest.mark.asyncio
 class TestE2EAPIRetrieval:
-    """Test that events persisted by orchestrator can be retrieved via API."""
+    """Test that events persisted by The Brain can be retrieved via API."""
 
     @pytest.fixture(autouse=True)
     def check_api_running(self):
@@ -812,11 +812,11 @@ class TestE2EAPIRetrieval:
             pytest.skip("API server not running at localhost:8001")
 
     async def test_api_returns_persisted_trace(self, setup_db, mock_llm_router, mock_telegram_client, mock_settings, project_root):
-        """Test that API can retrieve traces created by orchestrator."""
+        """Test that API can retrieve traces created by The Brain."""
         import httpx
         from sima_prompts import PromptRegistry
-        from sima_orchestrator.module_runner import ModuleRunner
-        from sima_orchestrator.awake_loop import AwakeLoop
+        from sima_brain.module_runner import ModuleRunner
+        from sima_brain.awake_loop import AwakeLoop
 
         module_runner = ModuleRunner(
             llm_router=mock_llm_router,
@@ -858,8 +858,8 @@ class TestE2EAPIRetrieval:
         """Test that API can retrieve events for a trace."""
         import httpx
         from sima_prompts import PromptRegistry
-        from sima_orchestrator.module_runner import ModuleRunner
-        from sima_orchestrator.awake_loop import AwakeLoop
+        from sima_brain.module_runner import ModuleRunner
+        from sima_brain.awake_loop import AwakeLoop
 
         module_runner = ModuleRunner(
             llm_router=mock_llm_router,

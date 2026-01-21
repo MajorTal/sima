@@ -1,5 +1,5 @@
 """
-Integration tests for the orchestrator's ModuleRunner.
+Integration tests for The Brain's ModuleRunner.
 
 These tests require a valid OPENAI_API_KEY in the environment.
 """
@@ -8,7 +8,7 @@ import pytest
 
 from sima_llm import LLMRouter
 from sima_prompts import PromptRegistry
-from sima_orchestrator import ModuleRunner, ModuleResult
+from sima_brain import ModuleRunner, ModuleResult
 
 
 @pytest.fixture

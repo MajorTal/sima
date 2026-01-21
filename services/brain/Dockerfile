@@ -8,14 +8,14 @@ RUN pip install uv
 # Copy workspace files
 COPY pyproject.toml uv.lock ./
 COPY packages/ ./packages/
-COPY services/orchestrator/ ./services/orchestrator/
+COPY services/brain/ ./services/brain/
 COPY prompts/ ./prompts/
 
 # Install dependencies
 RUN uv sync --frozen
 
 # Set working directory for service
-WORKDIR /app/services/orchestrator
+WORKDIR /app/services/brain
 
 # Run the application
-CMD ["uv", "run", "python", "-m", "sima_orchestrator.worker"]
+CMD ["uv", "run", "python", "-m", "sima_brain.worker"]

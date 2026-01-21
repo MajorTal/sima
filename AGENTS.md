@@ -105,7 +105,7 @@ For local development, secrets go in `.env` file (not committed to git).
 |---------|---------|
 | api | `322989427387.dkr.ecr.us-east-1.amazonaws.com/sima-sima/api` |
 | web | `322989427387.dkr.ecr.us-east-1.amazonaws.com/sima-sima/web` |
-| orchestrator | `322989427387.dkr.ecr.us-east-1.amazonaws.com/sima-sima/orchestrator` |
+| brain | `322989427387.dkr.ecr.us-east-1.amazonaws.com/sima-sima/brain` |
 | ingest-api | `322989427387.dkr.ecr.us-east-1.amazonaws.com/sima-sima/ingest-api` |
 | sleep | `322989427387.dkr.ecr.us-east-1.amazonaws.com/sima-sima/sleep` |
 
@@ -116,7 +116,7 @@ For local development, secrets go in `.env` file (not committed to git).
 ```bash
 # List services and their status
 aws ecs describe-services --cluster sima-sima \
-  --services sima-sima-api sima-sima-web sima-sima-orchestrator \
+  --services sima-sima-api sima-sima-web sima-sima-brain \
   --profile private --region us-east-1 \
   --query 'services[*].[serviceName,runningCount,desiredCount,deployments[0].rolloutState]' \
   --output table

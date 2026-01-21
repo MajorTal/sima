@@ -150,7 +150,7 @@ def execute_pray_tool(arguments: dict[str, Any] | None = None) -> dict[str, Any]
     """
     Placeholder executor for pray tool.
 
-    The actual executor should be registered by the orchestrator service
+    The actual executor should be registered by The Brain service
     which has access to Telegram credentials.
     """
     arguments = arguments or {}
@@ -259,7 +259,7 @@ def register_async_tool_executor(name: str, executor: Callable) -> None:
     Register an async executor for a tool.
 
     This is used for tools that need async execution (e.g., Telegram API calls).
-    The async executor will be called by the orchestrator after the LLM returns.
+    The async executor will be called by The Brain after the LLM returns.
 
     Args:
         name: Tool name.

@@ -1,5 +1,5 @@
 """
-SIMA Orchestrator - Cognitive loop orchestration service.
+SIMA Brain - The cognitive loop orchestration service (formerly "orchestrator").
 """
 
 from .awake_loop import AwakeLoop, TraceContext

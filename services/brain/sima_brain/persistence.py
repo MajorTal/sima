@@ -1,5 +1,5 @@
 """
-Event persistence layer for the orchestrator.
+Event persistence layer for The Brain.
 
 Handles storing events and traces to the database using sima-storage.
 """

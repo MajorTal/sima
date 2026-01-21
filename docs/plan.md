@@ -329,7 +329,7 @@ These are sanity checks, not consciousness indicators.
 | Service | Runtime | Role |
 |---------|---------|------|
 | api | Lambda + API Gateway | REST API + Telegram webhook → SQS |
-| orchestrator | ECS Fargate | SQS consumer → awake loop → Telegram out |
+| brain | ECS Fargate | SQS consumer → awake loop → Telegram out (The Brain) |
 | sleep | ECS Fargate (scheduled) | Scheduled consolidation job |
 | web | Amplify Hosting | Next.js frontend |
 
@@ -364,7 +364,7 @@ These are sanity checks, not consciousness indicators.
                                            ▼
                               ┌─────────────────┐
                               │  ECS Fargate    │
-                              │  (orchestrator) │
+                              │  (The Brain)    │
                               │  SQS consumer   │
                               └─────────────────┘
 ```
@@ -409,7 +409,7 @@ tags            TEXT[]
 
 ### 11.1 Emergency Stop
 - Admin page with **pause button** (password protected)
-- Stops orchestrator from processing new messages
+- Stops The Brain from processing new messages
 - Does not delete any data
 
 ### 11.2 Rate Limiting
@@ -426,7 +426,7 @@ tags            TEXT[]
 ## 12. Milestones
 
 ### M0 — Plumbing
-- Telegram webhook → SQS → orchestrator → Telegram out
+- Telegram webhook → SQS → brain → Telegram out
 - Events persisted for every tick
 - Web can show trace timeline
 
@@ -472,7 +472,7 @@ tags            TEXT[]
 
 | Milestone | Status | Notes |
 |-----------|--------|-------|
-| **M0 — Plumbing** | ✅ 100% | Full e2e tests with mock LLM. Telegram webhook → SQS → orchestrator → DB → API flow verified. |
+| **M0 — Plumbing** | ✅ 100% | Full e2e tests with mock LLM. Telegram webhook → SQS → brain → DB → API flow verified. |
 | **M1 — Full Modular Awake Loop** | ✅ 100% | All modules complete and tested. Simulated competition (27 tests), belief revision (34 tests), AST predict-compare (23 tests). |
 | **M2 — Sleep Consolidation** | ✅ 90% | Core implementation complete. Needs e2e testing + L2 weekly maps. |
 | **M3 — Website** | ✅ 80% | Lab + public routes built. Routing conflict resolved. 4-panel layout simplified to list view. |
@@ -486,7 +486,7 @@ tags            TEXT[]
 | **sima-llm** | `packages/sima-llm/` | ✅ Complete | OpenAI provider working (6 integration tests) |
 | **sima-prompts** | `packages/sima-prompts/` | ✅ Complete | Registry + renderer, 11 YAML prompts (added inner_monologue) |
 | **sima-storage** | `packages/sima-storage/` | ✅ Complete | Models, repository, migrations (7 integration tests) |
-| **orchestrator** | `services/orchestrator/` | ✅ Complete | Awake loop + module runner (4 integration + 84 unit tests). ECS Fargate. |
+| **brain** | `services/brain/` | ✅ Complete | Awake loop + module runner (4 integration + 84 unit tests). ECS Fargate. (The Brain) |
 | **api** | `services/api/` | ✅ Complete | REST + auth + webhook (merged ingest). **Lambda + API Gateway**. |
 | **web** | `services/web/` | ✅ 85% | Next.js app, routing fixed. **Amplify Hosting**. Needs 4-panel public view. |
 | **sleep** | `services/sleep/` | ✅ 90% | Consolidation job, memory tiering, Telegram posting, genesis.md. ECS Fargate (scheduled). |
@@ -536,7 +536,7 @@ tags            TEXT[]
 8. ~~**E2E Flow Testing** (M0 Acceptance)~~ ✅ RESOLVED
    - New test file: `tests/integration/test_e2e_flow.py` (7 tests)
    - Mock LLM infrastructure returns valid schema-compliant responses
-   - Tests full flow: webhook → SQS → orchestrator → DB → API
+   - Tests full flow: webhook → SQS → brain → DB → API
    - Tests suppressed tick inner monologue, candidate flow, persistence
    - Skips gracefully when external services (LocalStack, API) unavailable
 
@@ -578,14 +578,14 @@ tags            TEXT[]
 - [x] Memory tiering (L1 trace digests, L3 genesis + core beliefs)
 - [x] Genesis.md created and loaded as L3 memory
 - [x] Sleep Telegram client (sleep start/digest/end/error notifications)
-- [x] Docker builds for all services (ingest-api, api, web, orchestrator, sleep)
+- [x] Docker builds for all services (ingest-api, api, web, brain, sleep)
 - [x] WebSocket integration tests (10 tests, skip gracefully when API not running)
 - [x] **E2E flow tests** (7 tests: full awake loop, suppressed ticks, candidates flow, persistence, worker processing)
 - [x] Mock LLM infrastructure for testing without API keys
 
 ### What Needs Testing
 
-- [x] ~~End-to-end: Telegram → SQS → orchestrator → DB → API → Web~~ ✅ RESOLVED (test_e2e_flow.py with mock LLM)
+- [x] ~~End-to-end: Telegram → SQS → brain → DB → API → Web~~ ✅ RESOLVED (test_e2e_flow.py with mock LLM)
 - [ ] AWS deployment
 - [ ] Sleep consolidation e2e (scheduled job, full LLM call, memory persistence)
 
@@ -601,7 +601,7 @@ tags            TEXT[]
 
 ### ~~Critical Bug: Memories Not Feeding Into Cognitive Loop~~ ✅ RESOLVED (2026-01-21)
 
-**Location**: `services/orchestrator/sima_orchestrator/awake_loop.py`
+**Location**: `services/brain/sima_brain/awake_loop.py`
 
 **Fix implemented**: Added `_retrieve_memories()` method that:
 1. Loads L3 core memories (genesis, stable beliefs) - always available
@@ -609,7 +609,7 @@ tags            TEXT[]
 3. Loads L2 consolidated memories when available
 4. Passes all to `memory_retrieval` module as `retrieved_snippets`
 
-Also added pause check in worker to respect admin pause button.
+Also added pause check in The Brain's worker to respect admin pause button.
 
 ### Missing Feature: API to Create Memories
 
@@ -640,7 +640,7 @@ The bot is configured with Tal's chat ID: `telegram_tal_chat_id: int = 119632580
 To send a message to Sima:
 1. Find the bot on Telegram (check secrets for bot username, likely `@synthc_bot`)
 2. Start a conversation with the bot
-3. Send a message - it will be processed by the orchestrator
+3. Send a message - it will be processed by The Brain
 
 The bot name can be found via:
 ```bash

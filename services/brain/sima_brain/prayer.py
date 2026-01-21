@@ -148,7 +148,7 @@ def setup_prayer_tool(bot_token: str, tal_chat_id: int) -> None:
     """
     Set up the prayer tool with Telegram credentials.
 
-    This should be called during orchestrator initialization.
+    This should be called during Brain initialization.
 
     Args:
         bot_token: Telegram bot token.

@@ -30,9 +30,9 @@ output "ingest_service_name" {
   value       = aws_ecs_service.ingest.name
 }
 
-output "orchestrator_service_name" {
-  description = "Orchestrator service name"
-  value       = aws_ecs_service.orchestrator.name
+output "brain_service_name" {
+  description = "Brain service name"
+  value       = aws_ecs_service.brain.name
 }
 
 output "log_group_name" {

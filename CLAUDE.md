@@ -54,7 +54,7 @@ uv run python -m sima_api.main
 
 ### Services (services/)
 - **ingest-api**: Telegram webhook receiver → SQS enqueue
-- **orchestrator**: SQS consumer → awake loop → Telegram out → event persistence
+- **brain**: SQS consumer → awake loop → Telegram out → event persistence (The Brain)
 - **sleep**: Scheduled nightly consolidation job (EventBridge)
 - **api**: Backend for web (public + lab endpoints)
 - **web**: Next.js frontend with two route groups: `/(public)` and `/(lab)`
