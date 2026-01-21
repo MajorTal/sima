@@ -7,6 +7,7 @@ from .events import router as events_router
 from .metrics import router as metrics_router
 from .admin import router as admin_router
 from .memories import router as memories_router
+from .webhook import router as webhook_router
 
 __all__ = [
     "traces_router",
@@ -14,4 +15,5 @@ __all__ = [
     "metrics_router",
     "admin_router",
     "memories_router",
+    "webhook_router",
 ]

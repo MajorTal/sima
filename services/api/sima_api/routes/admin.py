@@ -2,10 +2,13 @@
 Admin API routes for system control.
 """
 
+import json
 import logging
+from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+import boto3
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import delete
 
@@ -20,6 +23,7 @@ from ..auth import (
     AdminLoginRequest,
     TokenResponse,
 )
+from ..settings import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -78,19 +82,74 @@ async def set_system_paused(
         )
 
 
-@router.post("/trigger-tick")
+class TriggerTickResponse(BaseModel):
+    """Trigger tick response."""
+    status: str
+    tick_type: str
+    message_id: str | None = None
+
+
+@router.post("/trigger-tick", response_model=TriggerTickResponse)
 async def trigger_tick(
     _: Annotated[bool, Depends(require_lab_auth)],
     tick_type: str = "autonomous",
 ):
     """
-    Manually trigger a tick event.
+    Manually trigger a tick event by enqueueing to SQS.
 
-    Lab-only endpoint.
+    Lab-only endpoint. Useful for testing the cognitive loop.
+
+    Args:
+        tick_type: Type of tick - "autonomous" or "minute"
     """
-    # Would enqueue a tick event to SQS
-    logger.info(f"Manual {tick_type} tick triggered by admin")
-    return {"status": "triggered", "tick_type": tick_type}
+    if tick_type not in ("autonomous", "minute"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid tick_type: {tick_type}. Must be 'autonomous' or 'minute'",
+        )
+
+    # Build the tick message
+    now = datetime.now(timezone.utc)
+    message_body = {
+        "event_type": f"{tick_type}_tick",
+        "triggered_by": "admin",
+        "timestamp": now.isoformat(),
+    }
+
+    try:
+        # Create boto3 session
+        session_kwargs = {"region_name": settings.aws_region}
+        if settings.aws_profile:
+            session_kwargs["profile_name"] = settings.aws_profile
+        session = boto3.Session(**session_kwargs)
+
+        # Create SQS client (with optional LocalStack endpoint)
+        client_kwargs = {}
+        if settings.sqs_endpoint_url:
+            client_kwargs["endpoint_url"] = settings.sqs_endpoint_url
+        sqs = session.client("sqs", **client_kwargs)
+
+        # Send message to SQS
+        response = sqs.send_message(
+            QueueUrl=settings.sqs_queue_url,
+            MessageBody=json.dumps(message_body),
+        )
+
+        message_id = response.get("MessageId")
+        logger.info(f"Manual {tick_type} tick enqueued: {message_id}")
+
+        return TriggerTickResponse(
+            status="enqueued",
+            tick_type=tick_type,
+            message_id=message_id,
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to enqueue tick: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to enqueue tick: {str(e)}",
+        )
 
 
 @router.post("/login", response_model=TokenResponse)

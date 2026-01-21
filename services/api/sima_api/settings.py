@@ -31,5 +31,15 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: str = "*"
 
+    # AWS / SQS (for triggering ticks and webhook)
+    aws_region: str = "us-east-1"
+    aws_profile: str | None = None
+    sqs_queue_url: str = "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/sima-ingest"
+    sqs_endpoint_url: str | None = "http://localhost:4566"  # For LocalStack; set to None for real AWS
+
+    # Telegram (for webhook)
+    telegram_bot_token: str = ""
+    telegram_webhook_secret: str = ""  # Optional webhook secret for verification
+
 
 settings = Settings()

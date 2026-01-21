@@ -4,7 +4,7 @@ Memory API routes for the public website.
 
 import logging
 from typing import Annotated
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from sima_storage.database import get_session
 from sima_storage.repository import MemoryRepository
 
-from ..auth import optional_lab_auth
+from ..auth import optional_lab_auth, require_admin_auth
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/memories", tags=["memories"])
@@ -42,6 +42,13 @@ class CoreMemoriesResponse(BaseModel):
     """Core memories (L3) response."""
     core_memories: list[MemoryItem]
     recent_memories: list[MemoryItem]
+
+
+class CreateMemoryRequest(BaseModel):
+    """Request to create a new memory."""
+    memory_type: str  # e.g., "l1_trace_digest", "l2_weekly", "l3_belief"
+    content: str
+    metadata_json: dict | None = None
 
 
 @router.get("", response_model=MemoryListResponse)
@@ -96,6 +103,49 @@ async def list_memories(
             total=len(items),
             limit=limit,
             offset=offset,
+        )
+
+
+@router.post("", response_model=MemoryItem)
+async def create_memory(
+    request: CreateMemoryRequest,
+    _: Annotated[bool, Depends(require_admin_auth)],
+):
+    """
+    Create a new memory.
+
+    Admin-only endpoint. Use this to manually seed memories.
+
+    Memory types follow the level convention:
+    - l1_*: Short-term episodic memories (e.g., l1_trace_digest)
+    - l2_*: Consolidated weekly memories (e.g., l2_weekly_topic)
+    - l3_*: Core identity memories (e.g., l3_belief, l3_genesis)
+    """
+    async with get_session() as session:
+        repo = MemoryRepository(session)
+
+        memory_id = uuid4()
+        memory = await repo.create(
+            memory_id=memory_id,
+            memory_type=request.memory_type,
+            content=request.content,
+            metadata_json=request.metadata_json,
+            source_trace_ids=[],
+        )
+
+        await session.commit()
+
+        logger.info(f"Memory created via API: {memory_id} (type={request.memory_type})")
+
+        return MemoryItem(
+            memory_id=str(memory.memory_id),
+            memory_type=memory.memory_type,
+            content=memory.content,
+            created_at=memory.created_at.isoformat(),
+            updated_at=memory.updated_at.isoformat(),
+            relevance_score=memory.relevance_score,
+            access_count=memory.access_count,
+            metadata_json=memory.metadata_json,
         )
 
 
