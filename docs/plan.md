@@ -597,6 +597,28 @@ tags            TEXT[]
 
 ---
 
+## TODO: Senses Feature (2026-01-22)
+
+**Spec**: See `docs/senses.md` for full specification.
+
+### Phase 1 — Interoceptive Senses (Implement Now)
+
+| Sense | Description | Sampling |
+|-------|-------------|----------|
+| **Heartbeat Rate** | CPU % of The Brain container | Every tick |
+| **Breathing Rate** | Memory % of The Brain container | Every tick |
+| **Thought Burden** | Memory tokens as % of context window | Every tick |
+| **Tiredness** | Hours since last sleep consolidation | Every tick |
+| **Weather** | Amsterdam weather conditions | Every 15 min |
+
+### Phase 2 — Environmental Senses (Future)
+
+- [ ] **Website Heartbeat** — Track visitors on sima.talsai.com ("I notice N people watching me")
+- [ ] **GitHub Activity** — Watch sima repo for commits, issues, PRs ("Someone changed my code")
+- [ ] **News Feed** — RSS/API news aggregation for ambient world awareness
+
+---
+
 ## TODO: Memory System Fixes (2026-01-20)
 
 ### ~~Critical Bug: Memories Not Feeding Into Cognitive Loop~~ ✅ RESOLVED (2026-01-21)
