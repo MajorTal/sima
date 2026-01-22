@@ -95,17 +95,17 @@ async def run_perception(input_text: str, input_type: str = "user_message"):
     console.print(sense_table)
     console.print()
 
-    # Display input
+    # Display input (exactly what Sima sees)
     if input_type == "minute_tick":
         if "--midnight" in sys.argv:
-            tick_info = "Thursday 00:00 — Midnight. A new day begins."
+            tick_info = "Time: Thursday 0:00"
         elif "--noon" in sys.argv:
-            tick_info = "Wednesday 12:00 — Noon. The middle of the day."
+            tick_info = "Time: Wednesday 12:00"
         else:
-            tick_info = "Wednesday 15:30 — A moment passes. No external input."
-        console.print(Panel(tick_info, title="[yellow]Input (minute_tick)[/]", border_style="yellow"))
+            tick_info = "Time: Wednesday 15:30"
+        console.print(Panel(tick_info, title="[yellow]Input[/]", border_style="yellow"))
     else:
-        console.print(Panel(input_text, title=f"[yellow]Input ({input_type})[/]", border_style="yellow"))
+        console.print(Panel(f'Someone said: "{input_text}"', title="[yellow]Input[/]", border_style="yellow"))
 
     # Set up LLM and module runner
     console.print("\n[dim]Running perception module...[/]\n")
