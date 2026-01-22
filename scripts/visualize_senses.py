@@ -194,12 +194,12 @@ def build_display(senses: dict, iteration: int) -> Layout:
 
     layout["environmental"].update(env_panel)
 
-    # Footer - perception prompt preview
+    # Footer - perception prompt preview (what Sima actually sees - just raw values)
     prompt_preview = Text()
-    prompt_preview.append("Perception Prompt Input:\n", style="bold green")
+    prompt_preview.append("What Sima Sees:\n", style="bold green")
     prompt_preview.append(f"  Heartbeat: {hb_val:.1f}% | ", style="dim")
     prompt_preview.append(f"Breathing: {br_val:.1f}% | ", style="dim")
-    prompt_preview.append(f"Thought Burden: {tb_val:.1f}% ({tb_tokens:,} tokens) | ", style="dim")
+    prompt_preview.append(f"Thought Burden: {tb_val:.1f}% | ", style="dim")
     prompt_preview.append(f"Tiredness: {ti_val:.1f}h", style="dim")
 
     layout["footer"].update(Panel(prompt_preview, title="[green]→ Feeding into Perception[/]", border_style="green"))

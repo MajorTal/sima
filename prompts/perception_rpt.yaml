@@ -39,12 +39,12 @@ messages:
 
       {% if senses %}
       Current Sensory State:
-      - Heartbeat Rate: {{senses.heartbeat_rate.value}}% (CPU utilization)
-      - Breathing Rate: {{senses.breathing_rate.value}}% (Memory utilization)
-      - Thought Burden: {{senses.thought_burden.value}}% ({{senses.thought_burden.tokens_used}}/{{senses.thought_burden.tokens_max}} tokens)
-      - Tiredness: {{senses.tiredness.value}} hours since sleep
+      - Heartbeat Rate: {{senses.heartbeat_rate.value}}%
+      - Breathing Rate: {{senses.breathing_rate.value}}%
+      - Thought Burden: {{senses.thought_burden.value}}%
+      - Tiredness: {{senses.tiredness.value}} hours
       {% if senses.weather %}
-      - Weather ({{senses.weather.location}}): {{senses.weather.temperature.current}}°C, {{senses.weather.conditions.description}}, feels like {{senses.weather.temperature.feels_like}}°C
+      - Weather: {{senses.weather.temperature.current}}°C, {{senses.weather.conditions.description}}, feels like {{senses.weather.temperature.feels_like}}°C
       {% endif %}
       {% endif %}
 
