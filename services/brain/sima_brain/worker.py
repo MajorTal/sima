@@ -24,6 +24,7 @@ from .awake_loop import AwakeLoop
 from .module_runner import ModuleRunner
 from .persistence import is_system_paused
 from .prayer import setup_prayer_tool
+from .senses import SenseCollector
 from .settings import Settings
 from .telegram import create_telegram_client_from_settings
 
@@ -78,11 +79,20 @@ class SQSWorker:
             prompt_registry=PromptRegistry(),
         )
 
+        # Create sense collector for interoceptive and environmental awareness
+        self.sense_collector = SenseCollector(
+            openweathermap_api_key=self.settings.openweathermap_api_key or None,
+            weather_location=self.settings.weather_location,
+            weather_cache_minutes=self.settings.weather_cache_minutes,
+            llm_model=self.settings.llm_primary_model,
+        )
+
         # Create awake loop with all components
         self.awake_loop = awake_loop or AwakeLoop(
             settings=self.settings,
             module_runner=self.module_runner,
             telegram_client=self.telegram_client,
+            sense_collector=self.sense_collector,
         )
 
         # Create boto3 session with profile if specified

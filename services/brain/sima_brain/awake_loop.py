@@ -28,6 +28,7 @@ from sima_storage.repository import MemoryRepository
 
 from .module_runner import ModuleRunner, ModuleResult
 from .persistence import TracePersistence, create_trace, persist_trace, get_prior_attention_prediction, get_recent_monologues
+from .senses import SenseCollector
 from .settings import Settings
 from .simulated_competition import run_competition
 from .telegram import TelegramClient
@@ -46,6 +47,9 @@ class TraceContext:
     chat_id: int | None = None
     message_id: int | None = None
     from_user: dict[str, Any] | None = None
+
+    # Sensory data
+    senses: dict[str, Any] | None = None
 
     # Results from modules
     percept: dict[str, Any] | None = None
@@ -77,6 +81,7 @@ class AwakeLoop:
         settings: Settings | None = None,
         module_runner: ModuleRunner | None = None,
         telegram_client: TelegramClient | None = None,
+        sense_collector: SenseCollector | None = None,
     ):
         """
         Initialize the awake loop.
@@ -85,10 +90,12 @@ class AwakeLoop:
             settings: Configuration settings.
             module_runner: Module runner for executing cognitive modules.
             telegram_client: Telegram client for sending messages.
+            sense_collector: Collector for interoceptive and environmental senses.
         """
         self.settings = settings or Settings()
         self.module_runner = module_runner
         self.telegram_client = telegram_client
+        self.sense_collector = sense_collector
 
         # Cognitive parameters
         self.recurrence_steps = self.settings.recurrence_steps
@@ -125,6 +132,31 @@ class AwakeLoop:
             content=content,
             trace_id=str(ctx.trace_id),
         )
+
+    async def _collect_senses(self, ctx: TraceContext) -> None:
+        """
+        Collect sensory data before perception.
+
+        Gathers interoceptive (heartbeat, breathing, thought burden, tiredness)
+        and environmental (weather) senses to provide context for perception.
+        """
+        if not self.sense_collector:
+            logger.debug("No sense collector configured, skipping sense collection")
+            return
+
+        try:
+            # Note: We'll pass memories to sense collector after retrieval
+            # For now, collect without memory context (thought burden will be updated later)
+            ctx.senses = await self.sense_collector.collect()
+
+            logger.debug(
+                f"Senses collected: heartbeat={ctx.senses['heartbeat_rate']['value']}%, "
+                f"breathing={ctx.senses['breathing_rate']['value']}%, "
+                f"tiredness={ctx.senses['tiredness']['value']}h"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to collect senses: {e}")
+            ctx.senses = None
 
     def run_message(
         self,
@@ -225,6 +257,9 @@ class AwakeLoop:
                 content_json=tick_metadata,
             )
 
+            # Step 0: Collect sensory data (before perception)
+            await self._collect_senses(ctx)
+
             # Step 1: Perception
             await self._run_perception(ctx)
 
@@ -313,6 +348,10 @@ class AwakeLoop:
             ],
             "current_goal": self.current_goal,
         }
+
+        # Add sensory data if available
+        if ctx.senses:
+            variables["senses"] = ctx.senses
 
         # Add input-specific variables
         if ctx.input_type == InputType.USER_MESSAGE:

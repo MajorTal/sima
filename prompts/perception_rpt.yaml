@@ -37,6 +37,17 @@ messages:
       - recent_workspace_summaries: {{recent_workspace_summaries}}
       - current_goal: {{current_goal}}
 
+      {% if senses %}
+      Current Sensory State:
+      - Heartbeat Rate: {{senses.heartbeat_rate.value}}% (CPU utilization)
+      - Breathing Rate: {{senses.breathing_rate.value}}% (Memory utilization)
+      - Thought Burden: {{senses.thought_burden.value}}% ({{senses.thought_burden.tokens_used}}/{{senses.thought_burden.tokens_max}} tokens)
+      - Tiredness: {{senses.tiredness.value}} hours since sleep
+      {% if senses.weather %}
+      - Weather ({{senses.weather.location}}): {{senses.weather.temperature.current}}°C, {{senses.weather.conditions.description}}, feels like {{senses.weather.temperature.feels_like}}°C
+      {% endif %}
+      {% endif %}
+
       {% if input_type == "minute_tick" %}
       Minute Tick Event:
       - timestamp: {{tick_timestamp}}

@@ -51,5 +51,10 @@ class Settings(BaseSettings):
     # Telegram telemetry
     telegram_telemetry_enabled: bool = True
 
+    # Senses
+    openweathermap_api_key: str = ""
+    weather_location: str = "Amsterdam,NL"
+    weather_cache_minutes: int = 15
+
     # Database
     database_url: str = "postgresql+asyncpg://localhost/sima"
