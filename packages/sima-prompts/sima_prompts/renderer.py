@@ -1,11 +1,20 @@
 """
-Prompt Renderer - Render prompt templates with variable substitution.
+Prompt Renderer - Render prompt templates with Jinja2.
 """
 
-import re
 from typing import Any
 
+from jinja2 import Environment, BaseLoader, StrictUndefined
+
 from .registry import PromptConfig
+
+
+# Create Jinja2 environment
+_env = Environment(
+    loader=BaseLoader(),
+    undefined=StrictUndefined,
+    autoescape=False,
+)
 
 
 def render_prompt(
@@ -13,9 +22,13 @@ def render_prompt(
     variables: dict[str, Any],
 ) -> list[dict[str, str]]:
     """
-    Render a prompt configuration with variable substitution.
+    Render a prompt configuration with Jinja2 template substitution.
 
-    Uses {{variable_name}} syntax for template variables.
+    Supports:
+    - Variable substitution: {{variable_name}}
+    - Nested access: {{senses.heartbeat_rate.value}}
+    - Conditionals: {% if senses %}...{% endif %}
+    - Loops: {% for item in items %}...{% endfor %}
 
     Args:
         config: PromptConfig loaded from registry.
@@ -30,8 +43,13 @@ def render_prompt(
         role = msg["role"]
         content = msg["content"]
 
-        # Substitute {{variable}} patterns
-        rendered_content = _substitute_variables(content, variables)
+        # Render with Jinja2
+        try:
+            template = _env.from_string(content)
+            rendered_content = template.render(**variables)
+        except Exception:
+            # If template fails, return content as-is
+            rendered_content = content
 
         rendered.append({
             "role": role,
@@ -41,39 +59,12 @@ def render_prompt(
     return rendered
 
 
-def _substitute_variables(template: str, variables: dict[str, Any]) -> str:
-    """
-    Substitute {{variable}} patterns in a template string.
-
-    Args:
-        template: Template string with {{variable}} placeholders.
-        variables: Dict of variable name -> value.
-
-    Returns:
-        Rendered string with variables substituted.
-    """
-    def replace_var(match: re.Match) -> str:
-        var_name = match.group(1).strip()
-        if var_name in variables:
-            value = variables[var_name]
-            if isinstance(value, (dict, list)):
-                import json
-                return json.dumps(value, indent=2, default=str)
-            return str(value)
-        # Keep placeholder if variable not found
-        return match.group(0)
-
-    # Match {{variable_name}} patterns
-    pattern = r"\{\{([^}]+)\}\}"
-    return re.sub(pattern, replace_var, template)
-
-
 def render_messages(
     messages: list[dict[str, str]],
     variables: dict[str, Any],
 ) -> list[dict[str, str]]:
     """
-    Render a list of message templates.
+    Render a list of message templates with Jinja2.
 
     Args:
         messages: List of message dicts with 'role' and 'content'.
@@ -84,8 +75,14 @@ def render_messages(
     """
     rendered = []
     for msg in messages:
+        try:
+            template = _env.from_string(msg["content"])
+            rendered_content = template.render(**variables)
+        except Exception:
+            rendered_content = msg["content"]
+
         rendered.append({
             "role": msg["role"],
-            "content": _substitute_variables(msg["content"], variables),
+            "content": rendered_content,
         })
     return rendered
