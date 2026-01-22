@@ -140,9 +140,9 @@ Sima's current sensory input is limited to Telegram messages and time-based tick
 
 **Sampling**: Every 15 minutes (slow sense, cached)
 
-**Source**: OpenWeatherMap API (free tier: 1000 calls/day = ~41/hour, plenty for 4/hour)
+**Source**: Open-Meteo API (free, no API key required for non-commercial use)
 
-**API Endpoint**: `https://api.openweathermap.org/data/2.5/weather?q=Amsterdam,NL&appid={API_KEY}&units=metric`
+**API Endpoint**: `https://api.open-meteo.com/v1/forecast?latitude=52.3676&longitude=4.9041&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m&daily=sunrise,sunset&timezone=Europe/Amsterdam`
 
 **Schema**:
 ```json
@@ -265,14 +265,13 @@ Add to `prompts/perception_rpt.yaml`:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `OPENWEATHERMAP_API_KEY` | API key for weather sense | (required) |
-| `WEATHER_LOCATION` | City for weather | `Amsterdam,NL` |
+| `WEATHER_ENABLED` | Enable/disable weather sense | `true` |
+| `WEATHER_LATITUDE` | Latitude for weather | `52.3676` (Amsterdam) |
+| `WEATHER_LONGITUDE` | Longitude for weather | `4.9041` (Amsterdam) |
+| `WEATHER_LOCATION_NAME` | Human-readable location | `Amsterdam, NL` |
 | `WEATHER_CACHE_MINUTES` | Weather refresh interval | `15` |
 
-### Secrets (AWS Secrets Manager)
-
-Add to `sima/llm-keys` or create `sima/senses`:
-- `openweathermap_api_key`
+**Note**: Weather uses Open-Meteo API which is free and requires no API key for non-commercial use.
 
 ---
 

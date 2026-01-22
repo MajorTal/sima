@@ -51,9 +51,11 @@ class Settings(BaseSettings):
     # Telegram telemetry
     telegram_telemetry_enabled: bool = True
 
-    # Senses
-    openweathermap_api_key: str = ""
-    weather_location: str = "Amsterdam,NL"
+    # Senses (weather uses Open-Meteo, no API key needed)
+    weather_enabled: bool = True
+    weather_latitude: float = 52.3676  # Amsterdam
+    weather_longitude: float = 4.9041
+    weather_location_name: str = "Amsterdam, NL"
     weather_cache_minutes: int = 15
 
     # Database

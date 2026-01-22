@@ -207,24 +207,26 @@ class TestTirednessSense:
 
 
 class TestWeatherSense:
-    """Tests for weather (environmental) sense."""
+    """Tests for weather (environmental) sense using Open-Meteo API."""
 
-    def test_init_without_api_key(self):
-        """Should work without API key (disabled mode)."""
-        sense = WeatherSense(api_key=None)
-        assert sense.api_key is None
+    def test_init_with_defaults(self):
+        """Should initialize with Amsterdam defaults."""
+        sense = WeatherSense()
+        assert sense.latitude == 52.3676
+        assert sense.longitude == 4.9041
+        assert sense.location_name == "Amsterdam, NL"
 
-    @pytest.mark.asyncio
-    async def test_collect_without_api_key_returns_none(self):
-        """Should return None when no API key configured."""
-        sense = WeatherSense(api_key=None)
-        result = await sense.collect()
-        assert result is None
+    def test_init_with_custom_location(self):
+        """Should accept custom coordinates."""
+        sense = WeatherSense(latitude=51.5074, longitude=-0.1278, location_name="London, UK")
+        assert sense.latitude == 51.5074
+        assert sense.longitude == -0.1278
+        assert sense.location_name == "London, UK"
 
     @pytest.mark.asyncio
     async def test_cache_validity(self):
         """Should cache weather data for configured duration."""
-        sense = WeatherSense(api_key="test", cache_minutes=15)
+        sense = WeatherSense(cache_minutes=15)
 
         # Simulate cached data
         sense._cached_data = {"temperature": {"current": 10}}
@@ -238,7 +240,7 @@ class TestWeatherSense:
 
     def test_clear_cache(self):
         """Should clear cached data."""
-        sense = WeatherSense(api_key="test")
+        sense = WeatherSense()
         sense._cached_data = {"temperature": {"current": 10}}
         sense._cache_timestamp = datetime.now(timezone.utc)
 
@@ -248,52 +250,47 @@ class TestWeatherSense:
         assert sense._cache_timestamp is None
 
     def test_parse_response(self):
-        """Should parse OpenWeatherMap API response correctly."""
-        sense = WeatherSense(api_key="test", location="Amsterdam,NL")
+        """Should parse Open-Meteo API response correctly."""
+        sense = WeatherSense(location_name="Amsterdam, NL")
 
         raw_response = {
-            "main": {
-                "temp": 12.5,
-                "feels_like": 10.2,
-                "humidity": 78,
+            "current": {
+                "temperature_2m": 12.5,
+                "apparent_temperature": 10.2,
+                "relative_humidity_2m": 78,
+                "weather_code": 3,  # Overcast
+                "wind_speed_10m": 18.7,  # km/h
+                "is_day": 1,
             },
-            "weather": [
-                {
-                    "main": "Clouds",
-                    "description": "overcast clouds",
-                    "icon": "04d",
-                }
-            ],
-            "wind": {
-                "speed": 5.2,
-            },
-            "sys": {
-                "sunrise": 1706082720,  # 08:32 UTC
-                "sunset": 1706113500,   # 17:05 UTC
+            "daily": {
+                "sunrise": ["2026-01-22T08:32"],
+                "sunset": ["2026-01-22T17:05"],
             },
         }
 
         result = sense._parse_response(raw_response)
 
-        assert result["location"] == "Amsterdam,NL"
+        assert result["location"] == "Amsterdam, NL"
         assert result["temperature"]["current"] == 12.5
         assert result["temperature"]["feels_like"] == 10.2
         assert result["temperature"]["unit"] == "celsius"
-        assert result["conditions"]["main"] == "Clouds"
-        assert result["conditions"]["description"] == "overcast clouds"
+        assert result["conditions"]["main"] == "Overcast"
+        assert result["conditions"]["description"] == "overcast"
         assert result["humidity"] == 78
-        assert result["wind"]["speed"] == 5.2
+        assert result["wind"]["speed"] == 5.2  # 18.7 km/h -> 5.2 m/s
         assert result["wind"]["unit"] == "m/s"
+        assert result["sun"]["sunrise"] == "08:32"
+        assert result["sun"]["sunset"] == "17:05"
 
 
 class TestSenseCollector:
     """Tests for the main sense collector orchestrator."""
 
     @pytest.mark.asyncio
-    async def test_collect_all_senses(self):
-        """Should collect all senses and return unified payload."""
+    async def test_collect_all_senses_weather_disabled(self):
+        """Should collect all senses except weather when disabled."""
         collector = SenseCollector(
-            openweathermap_api_key=None,  # Disabled
+            weather_enabled=False,
             llm_model="gpt-4o",
         )
 
@@ -305,14 +302,14 @@ class TestSenseCollector:
         assert "thought_burden" in result
         assert "tiredness" in result
 
-        # Weather should not be present (no API key)
+        # Weather should not be present (disabled)
         assert "weather" not in result
 
     @pytest.mark.asyncio
     async def test_collect_fast_only(self):
         """Should collect only fast senses when requested."""
         collector = SenseCollector(
-            openweathermap_api_key="test_key",
+            weather_enabled=True,
             llm_model="gpt-4o",
         )
 
@@ -329,7 +326,7 @@ class TestSenseCollector:
     async def test_collect_with_memories(self):
         """Should pass memories to thought burden sense."""
         collector = SenseCollector(
-            openweathermap_api_key=None,
+            weather_enabled=False,
             llm_model="gpt-4o",
         )
 
@@ -344,7 +341,7 @@ class TestSenseCollector:
 
     def test_get_summary(self):
         """Should return summary of last readings."""
-        collector = SenseCollector()
+        collector = SenseCollector(weather_enabled=False)
         summary = collector.get_summary()
 
         assert "heartbeat_rate" in summary
@@ -354,10 +351,10 @@ class TestSenseCollector:
         assert "weather_cached" in summary
 
     @pytest.mark.asyncio
-    async def test_weather_included_when_api_key_present(self):
-        """Should include weather when API key is configured."""
+    async def test_weather_included_when_enabled(self):
+        """Should include weather when enabled (Open-Meteo, no key needed)."""
         collector = SenseCollector(
-            openweathermap_api_key="test_key",
+            weather_enabled=True,
             llm_model="gpt-4o",
         )
 

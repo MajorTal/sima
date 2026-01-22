@@ -31,14 +31,16 @@ class SenseCollector:
     - Tiredness (Hours since sleep)
 
     Slow Senses:
-    - Weather (cached, refreshed every 15 minutes)
+    - Weather (cached, refreshed every 15 minutes, no API key needed)
     """
 
     def __init__(
         self,
-        openweathermap_api_key: str | None = None,
-        weather_location: str = "Amsterdam,NL",
+        weather_latitude: float = 52.3676,  # Amsterdam
+        weather_longitude: float = 4.9041,
+        weather_location_name: str = "Amsterdam, NL",
         weather_cache_minutes: int = 15,
+        weather_enabled: bool = True,
         llm_model: str = "gpt-4o",
         llm_context_window: int | None = None,
     ):
@@ -46,9 +48,11 @@ class SenseCollector:
         Initialize the sense collector with all senses.
 
         Args:
-            openweathermap_api_key: API key for weather sense (optional).
-            weather_location: City for weather sense.
+            weather_latitude: Latitude for weather sense.
+            weather_longitude: Longitude for weather sense.
+            weather_location_name: Human-readable location name.
             weather_cache_minutes: Cache duration for weather.
+            weather_enabled: Whether to enable weather sense.
             llm_model: Primary LLM model name (for thought burden calculation).
             llm_context_window: Override for model context window size.
         """
@@ -61,12 +65,14 @@ class SenseCollector:
         )
         self.tiredness = TirednessSense()
 
-        # Slow senses
+        # Slow senses (Open-Meteo is free, no API key needed)
+        self.weather_enabled = weather_enabled
         self.weather = WeatherSense(
-            api_key=openweathermap_api_key,
-            location=weather_location,
+            latitude=weather_latitude,
+            longitude=weather_longitude,
+            location_name=weather_location_name,
             cache_minutes=weather_cache_minutes,
-        )
+        ) if weather_enabled else None
 
     async def collect(
         self,
@@ -95,7 +101,9 @@ class SenseCollector:
         tiredness_data = await self.tiredness.collect()
 
         # Collect slow senses (may return cached data)
-        weather_data = await self.weather.collect()
+        weather_data = None
+        if self.weather:
+            weather_data = await self.weather.collect()
 
         payload = {
             "heartbeat_rate": heartbeat_data,
@@ -162,5 +170,5 @@ class SenseCollector:
             "breathing_rate": self.breathing.last_reading,
             "thought_burden": self.thought_burden.last_reading,
             "tiredness": self.tiredness.last_reading,
-            "weather_cached": self.weather.cached_data is not None,
+            "weather_cached": self.weather.cached_data is not None if self.weather else False,
         }

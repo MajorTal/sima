@@ -7,7 +7,7 @@ Provides ambient environmental context:
 - Sunrise/sunset times
 
 Sampling: Every 15 minutes (slow sense, cached)
-Source: OpenWeatherMap API
+Source: Open-Meteo API (free, no API key required)
 """
 
 import logging
@@ -18,40 +18,78 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-# OpenWeatherMap API endpoint
-OPENWEATHERMAP_URL = "https://api.openweathermap.org/data/2.5/weather"
+# Open-Meteo API endpoint (free, no key required)
+OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+
+# Amsterdam coordinates
+DEFAULT_LATITUDE = 52.3676
+DEFAULT_LONGITUDE = 4.9041
 
 # Default cache duration
 DEFAULT_CACHE_MINUTES = 15
 
+# WMO Weather codes to descriptions
+WMO_CODES = {
+    0: ("Clear sky", "☀️"),
+    1: ("Mainly clear", "🌤️"),
+    2: ("Partly cloudy", "⛅"),
+    3: ("Overcast", "☁️"),
+    45: ("Foggy", "🌫️"),
+    48: ("Depositing rime fog", "🌫️"),
+    51: ("Light drizzle", "🌧️"),
+    53: ("Moderate drizzle", "🌧️"),
+    55: ("Dense drizzle", "🌧️"),
+    56: ("Light freezing drizzle", "🌧️"),
+    57: ("Dense freezing drizzle", "🌧️"),
+    61: ("Slight rain", "🌧️"),
+    63: ("Moderate rain", "🌧️"),
+    65: ("Heavy rain", "🌧️"),
+    66: ("Light freezing rain", "🌧️"),
+    67: ("Heavy freezing rain", "🌧️"),
+    71: ("Slight snow", "🌨️"),
+    73: ("Moderate snow", "🌨️"),
+    75: ("Heavy snow", "🌨️"),
+    77: ("Snow grains", "🌨️"),
+    80: ("Slight rain showers", "🌦️"),
+    81: ("Moderate rain showers", "🌦️"),
+    82: ("Violent rain showers", "🌦️"),
+    85: ("Slight snow showers", "🌨️"),
+    86: ("Heavy snow showers", "🌨️"),
+    95: ("Thunderstorm", "⛈️"),
+    96: ("Thunderstorm with slight hail", "⛈️"),
+    99: ("Thunderstorm with heavy hail", "⛈️"),
+}
+
 
 class WeatherSense:
     """
-    Collects weather data from OpenWeatherMap API.
+    Collects weather data from Open-Meteo API.
 
     This is a "slow sense" that caches results to avoid excessive API calls.
     Weather data provides environmental context for Sima's perception.
 
-    The weather sense is optional - if no API key is configured, it returns
-    None without failing the sense collection.
+    Open-Meteo is free and requires no API key for non-commercial use.
     """
 
     def __init__(
         self,
-        api_key: str | None = None,
-        location: str = "Amsterdam,NL",
+        latitude: float = DEFAULT_LATITUDE,
+        longitude: float = DEFAULT_LONGITUDE,
+        location_name: str = "Amsterdam, NL",
         cache_minutes: int = DEFAULT_CACHE_MINUTES,
     ):
         """
         Initialize the weather sense.
 
         Args:
-            api_key: OpenWeatherMap API key.
-            location: City and country code (e.g., "Amsterdam,NL").
+            latitude: Location latitude (default: Amsterdam).
+            longitude: Location longitude (default: Amsterdam).
+            location_name: Human-readable location name.
             cache_minutes: How long to cache weather data.
         """
-        self.api_key = api_key
-        self.location = location
+        self.latitude = latitude
+        self.longitude = longitude
+        self.location_name = location_name
         self.cache_minutes = cache_minutes
 
         # Cache state
@@ -65,10 +103,6 @@ class WeatherSense:
         Returns:
             Weather data structure, or None if unavailable.
         """
-        if not self.api_key:
-            logger.debug("Weather sense disabled (no API key)")
-            return None
-
         # Check cache validity
         if self._is_cache_valid():
             logger.debug("Using cached weather data")
@@ -99,19 +133,29 @@ class WeatherSense:
 
     async def _fetch_weather(self) -> dict[str, Any] | None:
         """
-        Fetch weather data from OpenWeatherMap API.
+        Fetch weather data from Open-Meteo API.
 
         Returns:
             Parsed weather data structure, or None on failure.
         """
         params = {
-            "q": self.location,
-            "appid": self.api_key,
-            "units": "metric",  # Celsius
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "current": [
+                "temperature_2m",
+                "apparent_temperature",
+                "relative_humidity_2m",
+                "weather_code",
+                "wind_speed_10m",
+                "is_day",
+            ],
+            "daily": ["sunrise", "sunset"],
+            "timezone": "Europe/Amsterdam",
+            "forecast_days": 1,
         }
 
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(OPENWEATHERMAP_URL, params=params)
+            response = await client.get(OPEN_METEO_URL, params=params)
             response.raise_for_status()
             raw = response.json()
 
@@ -119,7 +163,7 @@ class WeatherSense:
 
     def _parse_response(self, raw: dict[str, Any]) -> dict[str, Any]:
         """
-        Parse OpenWeatherMap API response into our schema.
+        Parse Open-Meteo API response into our schema.
 
         Args:
             raw: Raw API response JSON.
@@ -127,45 +171,49 @@ class WeatherSense:
         Returns:
             Structured weather data.
         """
-        main = raw.get("main", {})
-        weather = raw.get("weather", [{}])[0]
-        wind = raw.get("wind", {})
-        sys = raw.get("sys", {})
+        current = raw.get("current", {})
+        daily = raw.get("daily", {})
 
-        # Convert Unix timestamps to time strings
-        sunrise_ts = sys.get("sunrise")
-        sunset_ts = sys.get("sunset")
+        # Get weather description from WMO code
+        weather_code = current.get("weather_code", 0)
+        description, icon = WMO_CODES.get(weather_code, ("Unknown", "❓"))
+
+        # Parse sunrise/sunset (format: "2026-01-22T08:32")
+        sunrise_raw = daily.get("sunrise", [None])[0]
+        sunset_raw = daily.get("sunset", [None])[0]
 
         sunrise_str = None
         sunset_str = None
-        if sunrise_ts:
-            sunrise_str = datetime.fromtimestamp(sunrise_ts, tz=timezone.utc).strftime("%H:%M")
-        if sunset_ts:
-            sunset_str = datetime.fromtimestamp(sunset_ts, tz=timezone.utc).strftime("%H:%M")
+        if sunrise_raw:
+            sunrise_str = sunrise_raw.split("T")[1] if "T" in sunrise_raw else sunrise_raw
+        if sunset_raw:
+            sunset_str = sunset_raw.split("T")[1] if "T" in sunset_raw else sunset_raw
 
         return {
-            "location": self.location,
+            "location": self.location_name,
             "temperature": {
-                "current": round(main.get("temp", 0), 1),
-                "feels_like": round(main.get("feels_like", 0), 1),
+                "current": round(current.get("temperature_2m", 0), 1),
+                "feels_like": round(current.get("apparent_temperature", 0), 1),
                 "unit": "celsius",
             },
             "conditions": {
-                "main": weather.get("main", "Unknown"),
-                "description": weather.get("description", "unknown"),
-                "icon": weather.get("icon", ""),
+                "main": description.split()[0] if description else "Unknown",
+                "description": description.lower(),
+                "icon": icon,
+                "code": weather_code,
             },
-            "humidity": main.get("humidity", 0),
+            "humidity": current.get("relative_humidity_2m", 0),
             "wind": {
-                "speed": round(wind.get("speed", 0), 1),
+                "speed": round(current.get("wind_speed_10m", 0) / 3.6, 1),  # km/h to m/s
                 "unit": "m/s",
             },
+            "is_day": current.get("is_day", 1) == 1,
             "sun": {
                 "sunrise": sunrise_str,
                 "sunset": sunset_str,
             },
             "sampled_at": datetime.now(timezone.utc).isoformat(),
-            "description": f"Weather conditions in {self.location.split(',')[0]}",
+            "description": f"Weather conditions in {self.location_name.split(',')[0]}",
         }
 
     @property

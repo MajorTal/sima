@@ -81,8 +81,10 @@ class SQSWorker:
 
         # Create sense collector for interoceptive and environmental awareness
         self.sense_collector = SenseCollector(
-            openweathermap_api_key=self.settings.openweathermap_api_key or None,
-            weather_location=self.settings.weather_location,
+            weather_enabled=self.settings.weather_enabled,
+            weather_latitude=self.settings.weather_latitude,
+            weather_longitude=self.settings.weather_longitude,
+            weather_location_name=self.settings.weather_location_name,
             weather_cache_minutes=self.settings.weather_cache_minutes,
             llm_model=self.settings.llm_primary_model,
         )
