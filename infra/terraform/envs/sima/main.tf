@@ -119,6 +119,8 @@ module "rds" {
 
   enable_performance_insights = false
   monitoring_interval         = 0
+
+  skip_final_snapshot = true
 }
 
 # =============================================================================

@@ -1,21 +1,28 @@
 #!/usr/bin/env bash
 # Pause Sima AWS resources to stop ongoing compute charges.
 #
-# Scales all ECS Fargate services to 0 and disables EventBridge schedules.
-# Fully reversible via scripts/aws_resume.sh. No data loss: RDS, S3, SQS,
-# Secrets Manager, ECR, ALB, NAT Gateway, and Route53 records are left intact.
+# Default: scales all ECS Fargate services to 0 and disables EventBridge
+# schedules. Fully reversible via scripts/aws_resume.sh. No data loss.
 #
-# What this stops paying for:
-#   - 4x Fargate tasks (web, api, ingest-api, brain) running 24/7
-#   - Scheduled Fargate task launches (minute tick, autonomous tick, sleep)
+# --deep: ALSO destroys RDS and the NAT Gateway via `terraform destroy
+# -target=...`. RDS data is wiped (final snapshot is skipped). The private
+# route table is cascade-destroyed because it references the NAT Gateway;
+# `terraform apply` on resume recreates RDS, NAT, EIP, and the routes from
+# scratch. Use --deep only when there is no valuable data in RDS.
 #
-# What this does NOT pause (still incurring cost):
-#   - RDS db.t4g.micro instance (~$12-15/mo) — stop manually if needed:
-#       aws rds stop-db-instance --db-instance-identifier sima-sima
-#       (AWS auto-restarts after 7 days)
-#   - NAT Gateway (~$32/mo) — requires `terraform destroy -target=module.vpc` to remove
-#   - ALB (~$16/mo) — requires `terraform destroy -target=module.alb` to remove
+# Cost stopped (default mode):
+#   - 4x Fargate tasks (web, api, ingest-api, brain)
+#   - Scheduled Fargate task launches (minute, autonomous, sleep)
+#
+# Cost stopped (--deep, additional):
+#   - NAT Gateway + Elastic IP (~$32/mo + data)
+#   - RDS db.t4g.micro + gp3 storage (~$12-15/mo)
+#
+# Still incurring cost in either mode:
+#   - ALB (~$16/mo)
 #   - Secrets Manager (~$0.40/secret/mo)
+#   - Route53 hosted zone (~$0.50/mo)
+#   - S3 / ECR storage (usually pennies)
 
 set -euo pipefail
 
@@ -23,6 +30,17 @@ AWS_PROFILE="${AWS_PROFILE:-private}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
 ENV="sima"
 CLUSTER="sima-${ENV}"
+
+DEEP=0
+for arg in "$@"; do
+  case "$arg" in
+    --deep) DEEP=1 ;;
+    -h|--help)
+      sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0 ;;
+    *) echo "unknown arg: $arg" >&2; exit 2 ;;
+  esac
+done
 
 AWS=(aws --profile "$AWS_PROFILE" --region "$AWS_REGION")
 
@@ -39,7 +57,7 @@ EVENT_RULES=(
   "sima-${ENV}-sleep-schedule"
 )
 
-echo "==> Pausing Sima on AWS (profile=$AWS_PROFILE region=$AWS_REGION)"
+echo "==> Pausing Sima on AWS (profile=$AWS_PROFILE region=$AWS_REGION, deep=$DEEP)"
 echo
 
 echo "==> Disabling EventBridge rules"
@@ -82,5 +100,36 @@ else
 fi
 echo
 
+if [[ "$DEEP" -eq 1 ]]; then
+  TF_DIR="$(git rev-parse --show-toplevel)/infra/terraform/envs/sima"
+  echo "==> DEEP pause: destroying RDS and NAT Gateway via Terraform"
+  echo "    working dir: $TF_DIR"
+  echo "    WARNING: this WIPES the RDS instance (no final snapshot)."
+  read -r -p "    Type 'destroy' to continue: " confirm
+  if [[ "$confirm" != "destroy" ]]; then
+    echo "    aborted."
+    exit 1
+  fi
+
+  cd "$TF_DIR"
+
+  # The RDS instance has skip_final_snapshot configured per the module;
+  # if not, this command will fail and you'll need to set it.
+  AWS_PROFILE="$AWS_PROFILE" terraform destroy -auto-approve \
+    -target=module.rds \
+    -target=module.vpc.aws_nat_gateway.main \
+    -target=module.vpc.aws_eip.nat
+
+  echo
+  echo "    [destroyed] module.rds"
+  echo "    [destroyed] module.vpc.aws_nat_gateway.main"
+  echo "    [destroyed] module.vpc.aws_eip.nat"
+  echo "    (private route table is cascade-destroyed; apply will recreate.)"
+fi
+
+echo
 echo "==> Done. Run scripts/aws_resume.sh to bring Sima back."
-echo "    Note: RDS, NAT Gateway, and ALB still incur cost. See script header."
+if [[ "$DEEP" -eq 1 ]]; then
+  echo "    Resume must use: scripts/aws_resume.sh --deep"
+  echo "    (it runs 'terraform apply' to recreate RDS/NAT, then scales ECS up.)"
+fi

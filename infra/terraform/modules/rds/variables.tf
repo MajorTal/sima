@@ -74,3 +74,9 @@ variable "monitoring_interval" {
   type        = number
   default     = 0
 }
+
+variable "skip_final_snapshot" {
+  description = "Skip the final snapshot on destroy. Set true for ephemeral environments with no valuable data."
+  type        = bool
+  default     = false
+}

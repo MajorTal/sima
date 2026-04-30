@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # Resume Sima AWS resources after running scripts/aws_pause.sh.
 #
-# Re-enables EventBridge schedules and scales ECS services back to their
-# normal desired_count (1 each, matching the Terraform config).
+# Default: re-enables EventBridge schedules and scales ECS services back to
+# their normal desired_count (1 each, matching the Terraform config).
 #
-# If you stopped RDS manually, start it back with:
-#   aws rds start-db-instance --db-instance-identifier sima-sima
+# --deep: first runs `terraform apply` to recreate RDS and the NAT Gateway
+# (and the cascade-destroyed private route table), then scales ECS up.
+# Use this if you ran `aws_pause.sh --deep`.
+#
+# Manual RDS stop (non-deep) restart: aws rds start-db-instance --db-instance-identifier sima-sima
 
 set -euo pipefail
 
@@ -13,6 +16,17 @@ AWS_PROFILE="${AWS_PROFILE:-private}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
 ENV="sima"
 CLUSTER="sima-${ENV}"
+
+DEEP=0
+for arg in "$@"; do
+  case "$arg" in
+    --deep) DEEP=1 ;;
+    -h|--help)
+      sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0 ;;
+    *) echo "unknown arg: $arg" >&2; exit 2 ;;
+  esac
+done
 
 AWS=(aws --profile "$AWS_PROFILE" --region "$AWS_REGION")
 
@@ -30,8 +44,18 @@ EVENT_RULES=(
   "sima-${ENV}-sleep-schedule"
 )
 
-echo "==> Resuming Sima on AWS (profile=$AWS_PROFILE region=$AWS_REGION)"
+echo "==> Resuming Sima on AWS (profile=$AWS_PROFILE region=$AWS_REGION, deep=$DEEP)"
 echo
+
+if [[ "$DEEP" -eq 1 ]]; then
+  TF_DIR="$(git rev-parse --show-toplevel)/infra/terraform/envs/sima"
+  echo "==> DEEP resume: recreating RDS and NAT Gateway via Terraform"
+  echo "    working dir: $TF_DIR"
+  cd "$TF_DIR"
+  AWS_PROFILE="$AWS_PROFILE" terraform apply -auto-approve
+  cd - >/dev/null
+  echo
+fi
 
 echo "==> Scaling ECS services back up"
 for entry in "${SERVICES[@]}"; do
@@ -62,3 +86,7 @@ done
 echo
 
 echo "==> Done. Tasks will take ~1-2 minutes to reach RUNNING."
+if [[ "$DEEP" -eq 1 ]]; then
+  echo "    Run DB migrations against the fresh RDS:"
+  echo "      cd packages/sima-storage && uv run alembic upgrade head"
+fi
