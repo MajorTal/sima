@@ -113,6 +113,8 @@ if [[ "$DEEP" -eq 1 ]]; then
 
   cd "$TF_DIR"
 
+  AWS_PROFILE="$AWS_PROFILE" terraform init -input=false
+
   # The RDS instance has skip_final_snapshot configured per the module;
   # if not, this command will fail and you'll need to set it.
   AWS_PROFILE="$AWS_PROFILE" terraform destroy -auto-approve \

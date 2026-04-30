@@ -52,6 +52,7 @@ if [[ "$DEEP" -eq 1 ]]; then
   echo "==> DEEP resume: recreating RDS and NAT Gateway via Terraform"
   echo "    working dir: $TF_DIR"
   cd "$TF_DIR"
+  AWS_PROFILE="$AWS_PROFILE" terraform init -input=false
   AWS_PROFILE="$AWS_PROFILE" terraform apply -auto-approve
   cd - >/dev/null
   echo
