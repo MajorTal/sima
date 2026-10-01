@@ -1,4 +1,7 @@
-# Secrets Manager module for SIMA credentials
+# SSM Parameter Store module for SIMA credentials
+#
+# Each value the ECS tasks consume is one SecureString parameter under
+# /secrets/sima/<environment>/, encrypted with the account's aws/ssm key.
 
 terraform {
   required_providers {
@@ -9,115 +12,120 @@ terraform {
   }
 }
 
-# Database credentials secret
-resource "aws_secretsmanager_secret" "database" {
-  name                    = "sima/${var.environment}/database"
-  description             = "Database credentials for SIMA"
-  recovery_window_in_days = var.environment == "prod" ? 30 : 0
+data "aws_region" "current" {}
+
+locals {
+  prefix = "/secrets/sima/${var.environment}"
 
   tags = {
     Environment = var.environment
     Service     = "sima"
-    Purpose     = "database-credentials"
   }
 }
 
-resource "aws_secretsmanager_secret_version" "database" {
-  secret_id = aws_secretsmanager_secret.database.id
-  secret_string = jsonencode({
-    username          = var.db_username
-    password          = var.db_password
-    host              = var.db_host
-    port              = var.db_port
-    database          = var.db_name
-    connection_string = "postgresql+asyncpg://${var.db_username}:${var.db_password}@${var.db_host}:${var.db_port}/${var.db_name}"
-  })
+# Database connection string
+resource "aws_ssm_parameter" "database_url" {
+  name        = "${local.prefix}/database-url"
+  description = "SIMA database connection string"
+  type        = "SecureString"
+  value       = "postgresql+asyncpg://${var.db_username}:${var.db_password}@${var.db_host}:${var.db_port}/${var.db_name}"
+  tags        = merge(local.tags, { Purpose = "database-credentials" })
 }
 
 # Telegram bot credentials
-resource "aws_secretsmanager_secret" "telegram" {
-  name                    = "sima/${var.environment}/telegram"
-  description             = "Telegram bot credentials for SIMA"
-  recovery_window_in_days = var.environment == "prod" ? 30 : 0
+resource "aws_ssm_parameter" "telegram_bot_token" {
+  name        = "${local.prefix}/telegram-bot-token"
+  description = "SIMA Telegram bot token"
+  type        = "SecureString"
+  value       = var.telegram_bot_token
+  tags        = merge(local.tags, { Purpose = "telegram-credentials" })
+}
 
-  tags = {
-    Environment = var.environment
-    Service     = "sima"
-    Purpose     = "telegram-credentials"
+resource "aws_ssm_parameter" "telegram_chat_id" {
+  name        = "${local.prefix}/telegram-chat-id"
+  description = "SIMA Telegram chat ID"
+  type        = "SecureString"
+  value       = var.telegram_chat_id
+  tags        = merge(local.tags, { Purpose = "telegram-credentials" })
+}
+
+# LLM API key
+resource "aws_ssm_parameter" "openai_api_key" {
+  name        = "${local.prefix}/openai-api-key"
+  description = "SIMA OpenAI API key"
+  type        = "SecureString"
+  value       = var.openai_api_key
+  tags        = merge(local.tags, { Purpose = "llm-api-keys" })
+}
+
+# Application secrets (JWT, lab password, admin credentials)
+resource "aws_ssm_parameter" "jwt_secret" {
+  name        = "${local.prefix}/jwt-secret"
+  description = "SIMA JWT signing secret"
+  type        = "SecureString"
+  value       = var.jwt_secret
+  tags        = merge(local.tags, { Purpose = "app-secrets" })
+}
+
+resource "aws_ssm_parameter" "lab_password" {
+  name        = "${local.prefix}/lab-password"
+  description = "SIMA lab access password"
+  type        = "SecureString"
+  value       = var.lab_password
+  tags        = merge(local.tags, { Purpose = "app-secrets" })
+}
+
+resource "aws_ssm_parameter" "admin_username" {
+  name        = "${local.prefix}/admin-username"
+  description = "SIMA admin username"
+  type        = "SecureString"
+  value       = var.admin_username
+  tags        = merge(local.tags, { Purpose = "app-secrets" })
+}
+
+resource "aws_ssm_parameter" "admin_password" {
+  name        = "${local.prefix}/admin-password"
+  description = "SIMA admin password"
+  type        = "SecureString"
+  value       = var.admin_password
+  tags        = merge(local.tags, { Purpose = "app-secrets" })
+}
+
+locals {
+  parameters = {
+    database_url       = aws_ssm_parameter.database_url
+    telegram_bot_token = aws_ssm_parameter.telegram_bot_token
+    telegram_chat_id   = aws_ssm_parameter.telegram_chat_id
+    openai_api_key     = aws_ssm_parameter.openai_api_key
+    jwt_secret         = aws_ssm_parameter.jwt_secret
+    lab_password       = aws_ssm_parameter.lab_password
+    admin_username     = aws_ssm_parameter.admin_username
+    admin_password     = aws_ssm_parameter.admin_password
   }
 }
 
-resource "aws_secretsmanager_secret_version" "telegram" {
-  secret_id = aws_secretsmanager_secret.telegram.id
-  secret_string = jsonencode({
-    bot_token     = var.telegram_bot_token
-    chat_id       = var.telegram_chat_id
-    conscious_channel_id    = var.telegram_conscious_channel_id
-    subconscious_channel_id = var.telegram_subconscious_channel_id
-    sleep_channel_id        = var.telegram_sleep_channel_id
-  })
-}
-
-# LLM API keys
-resource "aws_secretsmanager_secret" "llm_keys" {
-  name                    = "sima/${var.environment}/llm-keys"
-  description             = "LLM API keys for SIMA"
-  recovery_window_in_days = var.environment == "prod" ? 30 : 0
-
-  tags = {
-    Environment = var.environment
-    Service     = "sima"
-    Purpose     = "llm-api-keys"
-  }
-}
-
-resource "aws_secretsmanager_secret_version" "llm_keys" {
-  secret_id = aws_secretsmanager_secret.llm_keys.id
-  secret_string = jsonencode({
-    openai_api_key  = var.openai_api_key
-    google_api_key  = var.google_api_key
-    xai_api_key     = var.xai_api_key
-    anthropic_api_key = var.anthropic_api_key
-  })
-}
-
-# Application secrets (JWT, lab password, etc.)
-resource "aws_secretsmanager_secret" "app" {
-  name                    = "sima/${var.environment}/app"
-  description             = "Application secrets for SIMA"
-  recovery_window_in_days = var.environment == "prod" ? 30 : 0
-
-  tags = {
-    Environment = var.environment
-    Service     = "sima"
-    Purpose     = "app-secrets"
-  }
-}
-
-resource "aws_secretsmanager_secret_version" "app" {
-  secret_id = aws_secretsmanager_secret.app.id
-  secret_string = jsonencode({
-    jwt_secret     = var.jwt_secret
-    lab_password   = var.lab_password
-    admin_username = var.admin_username
-    admin_password = var.admin_password
-  })
-}
-
-# IAM policy for reading secrets
+# IAM policy for reading the parameters (ECS resolves task secrets with
+# ssm:GetParameters; SecureString values decrypt through the aws/ssm key).
 data "aws_iam_policy_document" "read_secrets" {
   statement {
     effect = "Allow"
     actions = [
-      "secretsmanager:GetSecretValue",
-      "secretsmanager:DescribeSecret"
+      "ssm:GetParameter",
+      "ssm:GetParameters"
     ]
-    resources = [
-      aws_secretsmanager_secret.database.arn,
-      aws_secretsmanager_secret.telegram.arn,
-      aws_secretsmanager_secret.llm_keys.arn,
-      aws_secretsmanager_secret.app.arn,
-    ]
+    resources = [for p in local.parameters : p.arn]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["kms:Decrypt"]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["ssm.${data.aws_region.current.name}.amazonaws.com"]
+    }
   }
 }
 
@@ -126,8 +134,5 @@ resource "aws_iam_policy" "read_secrets" {
   description = "Policy to read SIMA secrets"
   policy      = data.aws_iam_policy_document.read_secrets.json
 
-  tags = {
-    Environment = var.environment
-    Service     = "sima"
-  }
+  tags = local.tags
 }

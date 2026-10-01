@@ -20,7 +20,6 @@
 #
 # Still incurring cost in either mode:
 #   - ALB (~$16/mo)
-#   - Secrets Manager (~$0.40/secret/mo)
 #   - Route53 hosted zone (~$0.50/mo)
 #   - S3 / ECR storage (usually pennies)
 

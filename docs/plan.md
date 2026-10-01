@@ -666,8 +666,8 @@ To send a message to Sima:
 
 The bot name can be found via:
 ```bash
-aws secretsmanager get-secret-value --secret-id "sima/telegram/bot-token" \
-  --profile private --region us-east-1 --query 'SecretString' --output text
+aws ssm get-parameter --name "/secrets/sima/telegram/bot-token" --with-decryption \
+  --profile private --region us-east-1 --query 'Parameter.Value' --output text
 ```
 Then check the bot info via Telegram API or just search for the bot name in the Telegram app.
 

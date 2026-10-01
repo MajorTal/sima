@@ -329,7 +329,7 @@ Terraform in infra/terraform creates:
   - sima-sleep (scheduled task via EventBridge)
 - RDS Postgres
 - S3 bucket for large payloads
-- Secrets Manager entries for tokens/keys
+- SSM Parameter Store SecureString parameters for tokens/keys
 
 High-Level Data Flow
 --------------------

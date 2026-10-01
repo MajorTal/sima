@@ -245,23 +245,23 @@ resource "aws_ecs_task_definition" "api" {
       secrets = [
         {
           name      = "DATABASE_URL"
-          valueFrom = "${var.database_secret_arn}:connection_string::"
+          valueFrom = var.secret_parameter_arns["database_url"]
         },
         {
           name      = "JWT_SECRET"
-          valueFrom = "${var.app_secret_arn}:jwt_secret::"
+          valueFrom = var.secret_parameter_arns["jwt_secret"]
         },
         {
           name      = "LAB_PASSWORD"
-          valueFrom = "${var.app_secret_arn}:lab_password::"
+          valueFrom = var.secret_parameter_arns["lab_password"]
         },
         {
           name      = "ADMIN_USERNAME"
-          valueFrom = "${var.app_secret_arn}:admin_username::"
+          valueFrom = var.secret_parameter_arns["admin_username"]
         },
         {
           name      = "ADMIN_PASSWORD"
-          valueFrom = "${var.app_secret_arn}:admin_password::"
+          valueFrom = var.secret_parameter_arns["admin_password"]
         }
       ]
       logConfiguration = {
@@ -350,7 +350,7 @@ resource "aws_ecs_task_definition" "ingest" {
       secrets = [
         {
           name      = "TELEGRAM_BOT_TOKEN"
-          valueFrom = "${var.telegram_secret_arn}:bot_token::"
+          valueFrom = var.secret_parameter_arns["telegram_bot_token"]
         }
       ]
       logConfiguration = {
@@ -434,19 +434,19 @@ resource "aws_ecs_task_definition" "brain" {
       secrets = [
         {
           name      = "DATABASE_URL"
-          valueFrom = "${var.database_secret_arn}:connection_string::"
+          valueFrom = var.secret_parameter_arns["database_url"]
         },
         {
           name      = "TELEGRAM_BOT_TOKEN"
-          valueFrom = "${var.telegram_secret_arn}:bot_token::"
+          valueFrom = var.secret_parameter_arns["telegram_bot_token"]
         },
         {
           name      = "TELEGRAM_CHAT_ID"
-          valueFrom = "${var.telegram_secret_arn}:chat_id::"
+          valueFrom = var.secret_parameter_arns["telegram_chat_id"]
         },
         {
           name      = "OPENAI_API_KEY"
-          valueFrom = "${var.llm_secret_arn}:openai_api_key::"
+          valueFrom = var.secret_parameter_arns["openai_api_key"]
         }
       ]
       logConfiguration = {
@@ -520,15 +520,15 @@ resource "aws_ecs_task_definition" "sleep" {
       secrets = [
         {
           name      = "DATABASE_URL"
-          valueFrom = "${var.database_secret_arn}:connection_string::"
+          valueFrom = var.secret_parameter_arns["database_url"]
         },
         {
           name      = "TELEGRAM_BOT_TOKEN"
-          valueFrom = "${var.telegram_secret_arn}:bot_token::"
+          valueFrom = var.secret_parameter_arns["telegram_bot_token"]
         },
         {
           name      = "OPENAI_API_KEY"
-          valueFrom = "${var.llm_secret_arn}:openai_api_key::"
+          valueFrom = var.secret_parameter_arns["openai_api_key"]
         }
       ]
       logConfiguration = {

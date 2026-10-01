@@ -13,32 +13,44 @@ aws sso login
 
 ## Secrets Management
 
-**Always use AWS CLI to manage secrets.** Never use Terraform for secrets.
+Secrets live in SSM Parameter Store as `SecureString` parameters named
+`/secrets/<name>` in the private account (profile `private`, region
+`us-east-1`). Never put a value on the command line or print it: pipe it in
+through `file:///dev/stdin`.
 
-### Adding a secret to AWS Secrets Manager
+### Adding or updating a parameter
 
 ```bash
-AWS_PROFILE=private aws secretsmanager create-secret \
-  --name "sima/<service>/<secret-name>" \
-  --secret-string "<secret-value>" \
-  --description "<description>" \
+pbpaste | AWS_PROFILE=private aws ssm put-parameter \
+  --name "/secrets/sima/<secret-name>" \
+  --type SecureString \
+  --overwrite \
+  --value file:///dev/stdin \
+  --region us-east-1 > /dev/null
+```
+
+### Reading a parameter
+
+```bash
+AWS_PROFILE=private aws ssm get-parameter \
+  --name "/secrets/sima/<secret-name>" \
+  --with-decryption \
+  --query Parameter.Value --output text \
   --region us-east-1
 ```
 
-### Updating an existing secret
+### Current parameters
 
-```bash
-AWS_PROFILE=private aws secretsmanager put-secret-value \
-  --secret-id "sima/<service>/<secret-name>" \
-  --secret-string "<new-value>" \
-  --region us-east-1
-```
+| Parameter | Description |
+|-----------|-------------|
+| `/secrets/sima/telegram/bot-token` | Telegram bot token for synthc_bot |
+| `/secrets/sima/telegram` | Telegram credentials JSON for local development (`bot_token`, `chat_id`, channel IDs) |
+| `/secrets/sima/sima/*` | ECS task secrets, declared in `infra/terraform/modules/secrets` (`database-url`, `telegram-bot-token`, `telegram-chat-id`, `openai-api-key`, `jwt-secret`, `lab-password`, `admin-username`, `admin-password`) |
 
-### Current secrets
-
-| Secret Name | Description |
-|-------------|-------------|
-| `sima/telegram/bot-token` | Telegram bot token for synthc_bot |
+The ECS execution role reads the `/secrets/sima/sima/*` parameters through the
+`sima-sima-read-secrets` policy (`ssm:GetParameter(s)` on those ARNs and
+`kms:Decrypt` via SSM). Their values come from `terraform.tfvars` and the
+Terraform-generated passwords.
 
 ### Local development
 
@@ -54,7 +66,7 @@ For local development, secrets go in `.env` file (not committed to git).
 
 ### Full Deployment Process
 
-1. **Apply Terraform changes** (updates secrets, ECS task definitions, ALB rules):
+1. **Apply Terraform changes** (updates secret parameters, ECS task definitions, ALB rules):
    ```bash
    cd infra/terraform/envs/sima
    terraform init

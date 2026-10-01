@@ -122,7 +122,7 @@ Test organization:
 - `tests/conftest.py` - Shared fixtures
 
 ## Infrastructure (infra/terraform/)
-Terraform modules for AWS deployment: VPC, ECS/Fargate, RDS Postgres, S3, Secrets Manager. Environments in `envs/dev/` and `envs/prod/`.
+Terraform modules for AWS deployment: VPC, ECS/Fargate, RDS Postgres, S3, SSM Parameter Store secrets (`/secrets/sima/<environment>/*`). Environments in `envs/dev/` and `envs/prod/`.
 
 ## Theory Indicators
 The system instruments metrics for consciousness research:

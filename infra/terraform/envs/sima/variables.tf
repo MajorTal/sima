@@ -40,48 +40,9 @@ variable "telegram_chat_id" {
   default     = ""
 }
 
-variable "telegram_conscious_channel_id" {
-  description = "Telegram conscious stream channel ID"
-  type        = string
-  default     = ""
-}
-
-variable "telegram_subconscious_channel_id" {
-  description = "Telegram subconscious stream channel ID"
-  type        = string
-  default     = ""
-}
-
-variable "telegram_sleep_channel_id" {
-  description = "Telegram sleep stream channel ID"
-  type        = string
-  default     = ""
-}
-
 # LLM API Keys
 variable "openai_api_key" {
   description = "OpenAI API key"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "google_api_key" {
-  description = "Google AI API key"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "xai_api_key" {
-  description = "xAI API key"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "anthropic_api_key" {
-  description = "Anthropic API key"
   type        = string
   sensitive   = true
   default     = ""

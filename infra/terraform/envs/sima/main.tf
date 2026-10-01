@@ -60,7 +60,7 @@ module "vpc" {
 }
 
 # =============================================================================
-# Secrets Manager
+# Secrets (SSM Parameter Store SecureString, /secrets/sima/<environment>/*)
 # =============================================================================
 module "secrets" {
   source = "../../modules/secrets"
@@ -75,17 +75,11 @@ module "secrets" {
   db_name     = "sima"
 
   # Telegram
-  telegram_bot_token               = var.telegram_bot_token
-  telegram_chat_id                 = var.telegram_chat_id
-  telegram_conscious_channel_id    = var.telegram_conscious_channel_id
-  telegram_subconscious_channel_id = var.telegram_subconscious_channel_id
-  telegram_sleep_channel_id        = var.telegram_sleep_channel_id
+  telegram_bot_token = var.telegram_bot_token
+  telegram_chat_id   = var.telegram_chat_id
 
-  # LLM API Keys
-  openai_api_key    = var.openai_api_key
-  google_api_key    = var.google_api_key
-  xai_api_key       = var.xai_api_key
-  anthropic_api_key = var.anthropic_api_key
+  # LLM API key
+  openai_api_key = var.openai_api_key
 
   # Application
   jwt_secret     = random_password.jwt_secret.result
@@ -190,11 +184,8 @@ module "ecs" {
   image_tag           = var.image_tag
 
   # Secrets
-  secrets_policy_arn  = module.secrets.read_secrets_policy_arn
-  database_secret_arn = module.secrets.database_secret_arn
-  telegram_secret_arn = module.secrets.telegram_secret_arn
-  llm_secret_arn      = module.secrets.llm_keys_secret_arn
-  app_secret_arn      = module.secrets.app_secret_arn
+  secrets_policy_arn    = module.secrets.read_secrets_policy_arn
+  secret_parameter_arns = module.secrets.parameter_arns
 
   # S3 and SQS
   s3_policy_arn          = module.s3.events_access_policy_arn

@@ -40,28 +40,13 @@ variable "image_tag" {
 
 # Secrets
 variable "secrets_policy_arn" {
-  description = "ARN of IAM policy for reading secrets"
+  description = "ARN of IAM policy for reading the SSM secret parameters"
   type        = string
 }
 
-variable "database_secret_arn" {
-  description = "ARN of database credentials secret"
-  type        = string
-}
-
-variable "telegram_secret_arn" {
-  description = "ARN of Telegram credentials secret"
-  type        = string
-}
-
-variable "llm_secret_arn" {
-  description = "ARN of LLM API keys secret"
-  type        = string
-}
-
-variable "app_secret_arn" {
-  description = "ARN of app secrets"
-  type        = string
+variable "secret_parameter_arns" {
+  description = "ARNs of the SSM SecureString parameters, keyed by secret (database_url, telegram_bot_token, telegram_chat_id, openai_api_key, jwt_secret, lab_password, admin_username, admin_password)"
+  type        = map(string)
 }
 
 # S3 and SQS
