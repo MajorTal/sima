@@ -76,14 +76,12 @@ module "secrets" {
 
   # Telegram
   telegram_bot_token = var.telegram_bot_token
-  telegram_chat_id   = var.telegram_chat_id
 
   # LLM API key
   openai_api_key = var.openai_api_key
 
   # Application
   jwt_secret     = random_password.jwt_secret.result
-  lab_password   = var.lab_password
   admin_username = var.admin_username
   admin_password = var.admin_password
 
@@ -227,7 +225,7 @@ module "ecs" {
   # Brain tick settings
   minute_tick_enabled     = true
   autonomous_tick_enabled = true
-  brain_timezone   = "Asia/Jerusalem"
+  brain_timezone          = "Asia/Jerusalem"
 
   sleep_cpu             = 512
   sleep_memory          = 1024

@@ -252,10 +252,6 @@ resource "aws_ecs_task_definition" "api" {
           valueFrom = var.secret_parameter_arns["jwt_secret"]
         },
         {
-          name      = "LAB_PASSWORD"
-          valueFrom = var.secret_parameter_arns["lab_password"]
-        },
-        {
           name      = "ADMIN_USERNAME"
           valueFrom = var.secret_parameter_arns["admin_username"]
         },
@@ -439,10 +435,6 @@ resource "aws_ecs_task_definition" "brain" {
         {
           name      = "TELEGRAM_BOT_TOKEN"
           valueFrom = var.secret_parameter_arns["telegram_bot_token"]
-        },
-        {
-          name      = "TELEGRAM_CHAT_ID"
-          valueFrom = var.secret_parameter_arns["telegram_chat_id"]
         },
         {
           name      = "OPENAI_API_KEY"

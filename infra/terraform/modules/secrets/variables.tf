@@ -44,12 +44,6 @@ variable "telegram_bot_token" {
   default     = ""
 }
 
-variable "telegram_chat_id" {
-  description = "Telegram chat ID"
-  type        = string
-  default     = ""
-}
-
 # LLM API key
 variable "openai_api_key" {
   description = "OpenAI API key"
@@ -61,13 +55,6 @@ variable "openai_api_key" {
 # Application
 variable "jwt_secret" {
   description = "JWT signing secret"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "lab_password" {
-  description = "Lab access password"
   type        = string
   sensitive   = true
   default     = ""

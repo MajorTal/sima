@@ -41,14 +41,6 @@ resource "aws_ssm_parameter" "telegram_bot_token" {
   tags        = merge(local.tags, { Purpose = "telegram-credentials" })
 }
 
-resource "aws_ssm_parameter" "telegram_chat_id" {
-  name        = "${local.prefix}/telegram-chat-id"
-  description = "SIMA Telegram chat ID"
-  type        = "SecureString"
-  value       = var.telegram_chat_id
-  tags        = merge(local.tags, { Purpose = "telegram-credentials" })
-}
-
 # LLM API key
 resource "aws_ssm_parameter" "openai_api_key" {
   name        = "${local.prefix}/openai-api-key"
@@ -58,20 +50,12 @@ resource "aws_ssm_parameter" "openai_api_key" {
   tags        = merge(local.tags, { Purpose = "llm-api-keys" })
 }
 
-# Application secrets (JWT, lab password, admin credentials)
+# Application secrets (JWT, admin credentials)
 resource "aws_ssm_parameter" "jwt_secret" {
   name        = "${local.prefix}/jwt-secret"
   description = "SIMA JWT signing secret"
   type        = "SecureString"
   value       = var.jwt_secret
-  tags        = merge(local.tags, { Purpose = "app-secrets" })
-}
-
-resource "aws_ssm_parameter" "lab_password" {
-  name        = "${local.prefix}/lab-password"
-  description = "SIMA lab access password"
-  type        = "SecureString"
-  value       = var.lab_password
   tags        = merge(local.tags, { Purpose = "app-secrets" })
 }
 
@@ -95,10 +79,8 @@ locals {
   parameters = {
     database_url       = aws_ssm_parameter.database_url
     telegram_bot_token = aws_ssm_parameter.telegram_bot_token
-    telegram_chat_id   = aws_ssm_parameter.telegram_chat_id
     openai_api_key     = aws_ssm_parameter.openai_api_key
     jwt_secret         = aws_ssm_parameter.jwt_secret
-    lab_password       = aws_ssm_parameter.lab_password
     admin_username     = aws_ssm_parameter.admin_username
     admin_password     = aws_ssm_parameter.admin_password
   }

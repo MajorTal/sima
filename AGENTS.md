@@ -45,7 +45,7 @@ AWS_PROFILE=private aws ssm get-parameter \
 |-----------|-------------|
 | `/secrets/sima/telegram/bot-token` | Telegram bot token for synthc_bot |
 | `/secrets/sima/telegram` | Telegram credentials JSON for local development (`bot_token`, `chat_id`, channel IDs) |
-| `/secrets/sima/sima/*` | ECS task secrets, declared in `infra/terraform/modules/secrets` (`database-url`, `telegram-bot-token`, `telegram-chat-id`, `openai-api-key`, `jwt-secret`, `lab-password`, `admin-username`, `admin-password`) |
+| `/secrets/sima/sima/*` | ECS task secrets, declared in `infra/terraform/modules/secrets` (`database-url`, `telegram-bot-token`, `openai-api-key`, `jwt-secret`, `admin-username`, `admin-password`) |
 
 The ECS execution role reads the `/secrets/sima/sima/*` parameters through the
 `sima-sima-read-secrets` policy (`ssm:GetParameter(s)` on those ARNs and

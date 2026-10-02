@@ -45,7 +45,7 @@ variable "secrets_policy_arn" {
 }
 
 variable "secret_parameter_arns" {
-  description = "ARNs of the SSM SecureString parameters, keyed by secret (database_url, telegram_bot_token, telegram_chat_id, openai_api_key, jwt_secret, lab_password, admin_username, admin_password)"
+  description = "ARNs of the SSM SecureString parameters, keyed by secret (database_url, telegram_bot_token, openai_api_key, jwt_secret, admin_username, admin_password)"
   type        = map(string)
 }
 

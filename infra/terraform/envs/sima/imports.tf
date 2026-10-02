@@ -13,11 +13,6 @@ import {
 }
 
 import {
-  to = module.secrets.aws_ssm_parameter.telegram_chat_id
-  id = "/secrets/sima/sima/telegram-chat-id"
-}
-
-import {
   to = module.secrets.aws_ssm_parameter.openai_api_key
   id = "/secrets/sima/sima/openai-api-key"
 }
@@ -25,11 +20,6 @@ import {
 import {
   to = module.secrets.aws_ssm_parameter.jwt_secret
   id = "/secrets/sima/sima/jwt-secret"
-}
-
-import {
-  to = module.secrets.aws_ssm_parameter.lab_password
-  id = "/secrets/sima/sima/lab-password"
 }
 
 import {
